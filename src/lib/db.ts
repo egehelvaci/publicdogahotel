@@ -1,6 +1,6 @@
-import { Pool } from '@vercel/postgres';
+import { createPool } from '@vercel/postgres';
 
-export const db = new Pool({
+export const db = createPool({
   connectionString: process.env.POSTGRES_URL,
 });
 

@@ -175,6 +175,7 @@ export async function PUT(request) {
       );
     }
   } catch (error) {
+    console.error('Slider verisi güncellenirken hata:', error);
     return NextResponse.json(
       { error: 'Slider verisi güncellenirken bir hata oluştu' },
       { status: 500 }
@@ -221,6 +222,7 @@ export async function DELETE(request) {
       );
     }
   } catch (error) {
+    console.error('Slider verisi silinirken hata:', error);
     return NextResponse.json(
       { error: 'Slider verisi silinirken bir hata oluştu' },
       { status: 500 }

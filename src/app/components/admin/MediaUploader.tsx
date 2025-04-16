@@ -82,9 +82,9 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
 
       // Başarıyla yüklendi, URL'i parent bileşene bildir
       onMediaUploaded(data.fileUrl, data.fileType);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Yükleme hatası:', error);
-      setError(error.message || 'Yükleme işlemi başarısız oldu');
+      setError(error instanceof Error ? error.message : 'Yükleme işlemi başarısız oldu');
       
       // Hata durumunda önizlemeyi kaldır
       if (previewUrl && !existingMedia) {

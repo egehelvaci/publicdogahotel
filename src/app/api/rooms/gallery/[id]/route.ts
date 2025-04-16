@@ -27,14 +27,14 @@ const readRoomsData = (): RoomItem[] => {
 };
 
 // JSON dosyasına yazma yardımcı fonksiyonu (Use RoomItem type)
-const writeRoomsData = (data: RoomItem[], roomId: string) => {
+const writeRoomsData = (data: RoomItem[]) => {
   try {
     const jsonData = JSON.stringify(data, null, 2);
     fs.writeFileSync(roomsFilePath, jsonData, 'utf8');
     
     // WebSocket bildirimi gönder
     notifyRoomsUpdated();
-    notifyGalleryUpdated(); // Removed roomId argument
+    notifyGalleryUpdated();
 
     return true;
   } catch (error) {
@@ -119,7 +119,7 @@ export async function PUT(
     }
     
     // Verileri kaydet
-    const success = writeRoomsData(rooms, params.id);
+    const success = writeRoomsData(rooms);
     
     if (success) {
       return NextResponse.json({
@@ -184,7 +184,7 @@ export async function POST(
     rooms[roomIndex].gallery = [...rooms[roomIndex].gallery, imagePath];
     
     // Verileri kaydet
-    const success = writeRoomsData(rooms, params.id);
+    const success = writeRoomsData(rooms);
     
     if (success) {
       return NextResponse.json({
@@ -255,7 +255,7 @@ export async function DELETE(
     );
 
     // Verileri kaydet
-    const success = writeRoomsData(rooms, params.id);
+    const success = writeRoomsData(rooms);
     
     if (success) {
       return NextResponse.json({
