@@ -1,0 +1,66 @@
+[
+  {
+    "id": "restaurant",
+    "titleTR": "Restoran",
+    "titleEN": "Restaurant",
+    "descriptionTR": "Yerel ve uluslararası lezzetlerin buluştuğu restoranımızda, taze malzemelerle hazırlanmış zengin bir menü sunuyoruz. Sabah kahvaltısından akşam yemeğine kadar, konuklarımıza unutulmaz bir yemek deneyimi yaşatıyoruz.",
+    "descriptionEN": "In our restaurant, where local and international flavors meet, we offer a rich menu prepared with fresh ingredients. From breakfast to dinner, we provide our guests with an unforgettable dining experience.",
+    "iconName": "FaUtensils",
+    "detailsTR": [
+      "Açık Büfe Kahvaltı",
+      "A La Carte Akşam Yemeği",
+      "Özel Diyet Menüleri",
+      "Yöresel Lezzetler"
+    ],
+    "detailsEN": [
+      "Buffet Breakfast",
+      "A La Carte Dinner",
+      "Special Diet Menus",
+      "Local Specialties"
+    ],
+    "images": [
+      "/images/restaurant/restaurant1.jpg",
+      "/images/restaurant/restaurant2.jpg",
+      "/images/restaurant/restaurant3.jpg",
+      "/images/restaurant/restaurant4.jpg",
+      "/images/restaurant/restaurant5.jpg"
+    ],
+    "order": 0,
+    "active": true
+  },
+  {
+    "id": "pool",
+    "titleTR": "Havuz",
+    "titleEN": "Swimming Pool",
+    "descriptionTR": "Açık ve kapalı yüzme havuzlarımızda ferahlamanın ve eğlenmenin tadını çıkarabilirsiniz. Kaydıraklı havuzumuz çocuklar için özel olarak tasarlanmıştır. Her mevsim kullanılabilen havuzlarımız, konuklarımızın rahatı için özenle tasarlanmıştır.",
+    "descriptionEN": "You can enjoy refreshing and having fun in our indoor and outdoor swimming pools. Our pool with slides is specially designed for children. Our pools, which can be used in all seasons, are carefully designed for the comfort of our guests.",
+    "iconName": "FaSwimmingPool",
+    "detailsTR": [
+      "Isıtmalı Açık Havuz",
+      "Kapalı Havuz",
+      "Çocuk Havuzu",
+      "Kaydıraklı Havuz",
+      "Havuz Bar Servisi"
+    ],
+    "detailsEN": [
+      "Heated Outdoor Pool",
+      "Indoor Pool",
+      "Children's Pool",
+      "Pool with Slides",
+      "Pool Bar Service"
+    ],
+    "images": [
+      "/images/gallery/pool.jpg",
+      "/images/gallery/pool2.jpg",
+      "/images/gallery/pool3.jpg",
+      "/images/gallery/pool4.jpg",
+      "/images/gallery/pool5.jpg",
+      "/images/gallery/pool6.jpg",
+      "/images/gallery/pool7.jpg",
+      "/images/gallery/pool8.jpg",
+      "/images/gallery/pool9.jpg"
+    ],
+    "order": 1,
+    "active": true
+  }
+] 

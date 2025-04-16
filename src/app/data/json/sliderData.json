@@ -1,0 +1,39 @@
+[
+  {
+    "id": "c2d832fe-5544-44a8-80c5-9b81d3e359f4",
+    "image": "",
+    "videoUrl": "/videos/slider/c8d24812-5d1e-414d-af8f-72d20ffb13ff.mp4",
+    "titleTR": "deneme",
+    "titleEN": "deneme",
+    "subtitleTR": "deneme",
+    "subtitleEN": "deneme",
+    "descriptionTR": "denemedenemedenemedenemedenemedenemedeneme",
+    "descriptionEN": "denemedenemedenemedenemedeneme",
+    "order": 1,
+    "active": true
+  },
+  {
+    "id": "slider-1",
+    "image": "/images/slider/8820d14e-50c4-45ce-8da8-1feb5d4975c3.jpg",
+    "titleTR": "Huzurun ve Konforun Yeni Adresi",
+    "titleEN": "A New Address for Peace and Comfort",
+    "subtitleTR": "Doğa Hotel - Doğayla İç İçe Lüks ve Konfor",
+    "subtitleEN": "Doga Hotel - Luxury and Comfort in Nature",
+    "descriptionTR": "Lüks odalar, şık restoranlar ve özel hizmetlerimiz ile doğanın kalbinde unutulmaz bir konaklama deneyimi.",
+    "descriptionEN": "An unforgettable accommodation experience in the heart of nature with luxurious rooms, elegant restaurants, and special services.",
+    "order": 2,
+    "active": true
+  },
+  {
+    "id": "slider-2",
+    "image": "/images/slider/ca8c6f27-839e-4d22-9443-847a0acd7da4.jpg",
+    "titleTR": "Konforlu Konaklama",
+    "titleEN": "Comfortable Accommodation",
+    "subtitleTR": "Doğa Hotel - Lüks Konaklama",
+    "subtitleEN": "Doga Hotel - Luxury Accommodation",
+    "descriptionTR": "Özenle tasarlanmış odalarımızda konforun ve huzurun keyfini çıkarın.",
+    "descriptionEN": "Enjoy comfort and tranquility in our carefully designed rooms.",
+    "order": 3,
+    "active": true
+  }
+]
