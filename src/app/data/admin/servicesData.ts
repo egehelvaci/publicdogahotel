@@ -321,12 +321,12 @@ export async function updateServiceGallery(id: string, galleryData: { image: str
     
     const data = await response.json();
     
-    if (data.success) {
-      clearCache(); // Önbelleği temizle
-      return true;
-    } else {
-      return false;
+    if (!data.success) {
+      throw new Error(data.message || 'Servis galerisi güncellenemedi');
     }
+    
+    clearCache(); // Önbelleği temizle
+    return true;
   } catch (error) {
     console.error('Servis galerisi güncelleme hatası:', error);
     return false;
@@ -415,6 +415,35 @@ export async function toggleServiceVisibility(id: string): Promise<boolean> {
   }
 }
 
+// Servis görseli yükle
+export async function uploadServiceImage(file: File): Promise<string> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'services');
+    
+    const response = await fetch('/api/admin/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      throw new Error('Görsel yüklenirken hata oluştu');
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Görsel yüklenemedi');
+    }
+    
+    return data.url;
+  } catch (error) {
+    console.error('Görsel yükleme hatası:', error);
+    throw error;
+  }
+}
+
 // Servis görseli ekle
 export async function addImageToServiceGallery(id: string, imagePath: string): Promise<boolean> {
   try {
@@ -460,6 +489,8 @@ export async function removeImageFromServiceGallery(id: string, imagePath: strin
     // Eğer silinen görsel ana görsel ise, yeni ana görseli ayarla
     if (service.image === imagePath && updatedImages.length > 0) {
       updateData.image = updatedImages[0];
+    } else if (service.image === imagePath && updatedImages.length === 0) {
+      updateData.image = '';
     }
     
     // Servisi güncelle
@@ -472,29 +503,55 @@ export async function removeImageFromServiceGallery(id: string, imagePath: strin
   }
 }
 
-// Servisleri yeniden sırala
-export async function reorderServiceItems(newOrder: {id: string, order: number}[]): Promise<boolean> {
+// Çoklu görsel yükle
+export async function uploadMultipleServiceImages(files: FileList): Promise<string[]> {
   try {
-    const response = await fetch(`${getBaseUrl()}/api/admin/services/reorder`, {
+    const uploadedImages: string[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const imagePath = await uploadServiceImage(file);
+      uploadedImages.push(imagePath);
+    }
+    
+    return uploadedImages;
+  } catch (error) {
+    console.error('Çoklu görsel yükleme hatası:', error);
+    throw error;
+  }
+}
+
+// Servisleri yeniden sırala
+export async function reorderServices(items: {id: string, order: number}[]): Promise<boolean> {
+  try {
+    const timestamp = Date.now();
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    
+    const response = await fetch(`${baseUrl}/api/admin/services/reorder?t=${timestamp}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
-      body: JSON.stringify({ items: newOrder })
+      body: JSON.stringify({ items }),
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
     
     if (!response.ok) {
-      throw new Error('Servisler sıralanırken hata oluştu');
+      throw new Error('Servisler yeniden sıralanırken hata oluştu');
     }
     
     const data = await response.json();
     
-    if (data.success) {
-      clearCache(); // Önbelleği temizle
-      return true;
-    } else {
-      return false;
+    if (!data.success) {
+      throw new Error(data.message || 'Servisler yeniden sıralanamadı');
     }
+    
+    clearCache(); // Önbelleği temizle
+    return true;
   } catch (error) {
     console.error('Servis sıralama hatası:', error);
     return false;

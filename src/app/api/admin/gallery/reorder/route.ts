@@ -1,51 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateGalleryItemsOrder } from '@/app/data/gallery';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export const dynamic = 'force-dynamic';
 
-// Define an interface for the expected item structure
-interface ReorderItem {
-  id: string;
-  order: number;
-}
-
+// POST - Galeri öğelerinin sıralamasını güncelle
 export async function POST(request: NextRequest) {
   try {
-    const data = await request.json();
+    const body = await request.json();
     
-    if (!data.items || !Array.isArray(data.items)) {
+    if (!body.items || !Array.isArray(body.items)) {
       return NextResponse.json(
-        { success: false, message: 'Geçersiz veri formatı. "items" dizisi gereklidir.' },
+        { success: false, message: 'Sıralanacak öğeler bulunamadı veya geçersiz format' },
         { status: 400 }
       );
     }
     
-    // Doğru formatta olduğundan emin ol (Use the defined interface)
-    const isValidFormat = data.items.every(
-      (item: ReorderItem) => typeof item.id === 'string' && typeof item.order === 'number'
-    );
+    // Paralel işlemler için Promise.all kullanıyoruz
+    const updates = body.items.map((item: { id: string; orderNumber: number }) => {
+      return prisma.gallery.update({
+        where: { id: item.id },
+        data: { orderNumber: item.orderNumber }
+      });
+    });
     
-    if (!isValidFormat) {
-      return NextResponse.json(
-        { success: false, message: 'Geçersiz veri formatı. Her öğe "id" ve "order" içermelidir.' },
-        { status: 400 }
-      );
-    }
+    await Promise.all(updates);
     
-    // Galeri öğelerinin sıralamasını güncelle
-    await updateGalleryItemsOrder(data.items);
-    
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Galeri sıralaması başarıyla güncellendi' 
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğelerinin sıralaması başarıyla güncellendi'
     });
   } catch (error) {
-    console.error('Galeri sıralaması güncellenirken hata:', error);
+    console.error('Sıralama güncellenirken hata:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Galeri sıralaması güncellenirken bir hata oluştu',
-        error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+      {
+        success: false,
+        message: 'Sıralama güncellenirken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
     );

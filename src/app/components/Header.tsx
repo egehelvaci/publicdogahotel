@@ -143,12 +143,12 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
         <div className="container mx-auto px-4 flex justify-between items-center relative z-10">
           <div className="flex items-center">
             <Link href={`/${language}`} className="flex items-center transition-all duration-500 mr-3">
-              <div className="relative h-20 w-40 flex items-center justify-center rounded-lg overflow-hidden bg-white p-1 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg">
+              <div className="relative h-24 w-48 flex items-center justify-center rounded-lg overflow-hidden bg-white p-1 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg">
                 <Image 
                   src="/images/logo/dogahotellogo.jpg"
                   alt="Doğa Hotel Logo"
-                  width={135}
-                  height={70}
+                  width={170}
+                  height={90}
                   className="relative z-10 object-contain"
                   priority
                 />

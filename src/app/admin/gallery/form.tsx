@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { FaUpload, FaSave, FaYoutube } from 'react-icons/fa';
+import { FaUpload, FaSave, FaYoutube, FaPlay, FaVideo } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { GalleryItem, extractYoutubeId } from '@/app/data/gallery';
+import VideoThumbGenerator from '@/app/components/VideoThumbGenerator';
 
 interface GalleryFormProps {
   initialData?: GalleryItem;
@@ -16,6 +17,10 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  
   const [formData, setFormData] = useState({
     titleTR: '',
     titleEN: '',
@@ -25,6 +30,7 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
     category: 'genel',
     active: true,
     youtubeUrl: '',
+    videoUrl: '',
     type: 'image' as 'image' | 'video',
   });
 
@@ -39,15 +45,26 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
         category: initialData.category || 'genel',
         active: initialData.active ?? true,
         youtubeUrl: initialData.youtubeId ? `https://www.youtube.com/watch?v=${initialData.youtubeId}` : '',
+        videoUrl: initialData.videoUrl || '',
         type: initialData.type || 'image',
       });
       setImagePreview(initialData.image || null);
+      
+      // Video önizlemesini ayarla
+      if (initialData.type === 'video' && initialData.videoUrl) {
+        setVideoThumbnail(null); // VideoThumbGenerator tarafından oluşturulacak
+      }
     }
   }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Video URL'si değiştiğinde thumbnail'i sıfırla
+    if (name === 'videoUrl') {
+      setVideoThumbnail(null);
+    }
   };
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,13 +87,56 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
     // Şimdilik sahte bir URL kullanıyoruz
     setFormData(prev => ({ ...prev, image: URL.createObjectURL(file) }));
   };
+  
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Dosya türünü kontrol et
+    if (!file.type.startsWith('video/')) {
+      toast.error('Lütfen geçerli bir video dosyası seçin');
+      return;
+    }
+    
+    // Video için bir geçici URL oluştur
+    const videoUrl = URL.createObjectURL(file);
+    
+    // Form verilerini güncelle
+    setFormData(prev => ({ 
+      ...prev, 
+      videoUrl, 
+      type: 'video',
+      youtubeUrl: '' // Video dosyası eklendiğinde YouTube URL'sini temizle
+    }));
+    
+    // Önizlemeyi sıfırla (VideoThumbGenerator tarafından oluşturulacak)
+    setVideoThumbnail(null);
+  };
+
+  const handleVideoThumbnailGenerated = (thumbnailUrl: string) => {
+    setVideoThumbnail(thumbnailUrl);
+  };
+  
+  const toggleVideoPlay = () => {
+    if (!videoRef.current) return;
+    
+    if (isVideoPlaying) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play();
+    }
+    
+    setIsVideoPlaying(!isVideoPlaying);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Form doğrulama
-    if (!formData.titleTR || (!formData.image && !formData.youtubeUrl)) {
-      toast.error('Lütfen gerekli alanları doldurun (Başlık ve Görsel/YouTube Video)');
+    if (!formData.titleTR || 
+        (formData.type === 'image' && !formData.image) ||
+        (formData.type === 'video' && !formData.videoUrl && !formData.youtubeUrl)) {
+      toast.error('Lütfen gerekli alanları doldurun (Başlık ve Görsel/Video)');
       return;
     }
 
@@ -85,13 +145,6 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
     try {
       // YouTube URL'sinden ID'yi çıkar
       const youtubeId = formData.youtubeUrl ? extractYoutubeId(formData.youtubeUrl) : null;
-      
-      // Eğer YouTube URL'si girilmişse ve geçerliyse type'ı video olarak ayarla
-      setFormData({
-        ...formData,
-        youtubeId: youtubeId,
-        type: youtubeId ? 'video' : 'image'
-      });
       
       // API isteği gelecekte eklenecek
       // Şimdilik başarılı olduğunu varsayalım
@@ -250,65 +303,144 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
               )}
             </>
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">YouTube Video Linki *</label>
-              <div className="mt-1 flex items-center">
-                <div className="relative w-full">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaYoutube className="text-red-500" />
-                  </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Video URL *</label>
+                <div className="mt-1">
                   <input
                     type="text"
-                    name="youtubeUrl"
-                    value={formData.youtubeUrl}
+                    name="videoUrl"
+                    value={formData.videoUrl}
                     onChange={handleChange}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="pl-10 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                    placeholder="https://example.com/video.mp4"
+                    className="block w-full border border-gray-300 rounded-md shadow-sm p-2"
                   />
                 </div>
+                <div className="mt-2 flex items-center space-x-4">
+                  <label className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 cursor-pointer">
+                    <FaVideo className="mr-2" />
+                    Video Seç
+                    <input
+                      type="file"
+                      accept="video/*"
+                      onChange={handleVideoChange}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
               </div>
-              {formData.youtubeUrl && extractYoutubeId(formData.youtubeUrl) && (
+
+              {/* Video önizleme */}
+              {formData.videoUrl && (
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Video Önizleme</label>
-                  <div className="relative h-64 w-full border border-gray-300 rounded-md overflow-hidden">
-                    <Image
-                      src={`https://img.youtube.com/vi/${extractYoutubeId(formData.youtubeUrl)}/hqdefault.jpg`}
-                      alt="YouTube Önizleme"
-                      fill
-                      className="object-contain"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-16 h-12 flex items-center justify-center bg-red-600 rounded-lg opacity-90">
-                        <FaYoutube className="text-white text-2xl" />
+                  
+                  {!isVideoPlaying ? (
+                    <div className="relative border border-gray-300 rounded-md overflow-hidden bg-gray-100">
+                      {/* VideoThumbGenerator ile thumbnail üret */}
+                      {formData.videoUrl && !videoThumbnail && (
+                        <VideoThumbGenerator 
+                          videoUrl={formData.videoUrl} 
+                          videoId={initialData?.id || 'new-video'} 
+                          onThumbnailGenerated={handleVideoThumbnailGenerated}
+                          showPreview={false}
+                        />
+                      )}
+                      
+                      <div className="aspect-video flex items-center justify-center cursor-pointer" onClick={toggleVideoPlay}>
+                        {videoThumbnail ? (
+                          <div className="relative w-full h-full">
+                            <img 
+                              src={videoThumbnail} 
+                              alt="Video önizleme" 
+                              className="w-full h-full object-contain"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors">
+                              <div className="bg-red-600 rounded-full p-4 text-white hover:bg-red-700 hover:scale-110 transition-all duration-300 shadow-lg">
+                                <FaPlay size={24} />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center h-full w-full p-6">
+                            <div className="text-center">
+                              <FaVideo className="mx-auto text-gray-400 mb-2" size={40} />
+                              <p className="text-sm text-gray-500">Video önizlemesi yükleniyor...</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="relative border border-gray-300 rounded-md overflow-hidden">
+                      <video 
+                        ref={videoRef}
+                        src={formData.videoUrl}
+                        controls
+                        className="w-full aspect-video"
+                        onPause={() => setIsVideoPlaying(false)}
+                        onEnded={() => setIsVideoPlaying(false)}
+                      >
+                        Tarayıcınız video etiketini desteklemiyor.
+                      </video>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+              
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700">YouTube Video URL'si</label>
+                <div className="mt-1 flex">
+                  <div className="relative flex-grow flex items-center">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FaYoutube className="text-red-600" />
+                    </div>
+                    <input
+                      type="text"
+                      name="youtubeUrl"
+                      value={formData.youtubeUrl}
+                      onChange={handleChange}
+                      placeholder="https://www.youtube.com/watch?v=VIDEOID"
+                      className="block w-full pl-10 border border-gray-300 rounded-md shadow-sm p-2"
+                    />
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Not: YouTube URL'si eklerseniz, video URL'si yerine bu kullanılacaktır.
+                </p>
+              </div>
+            </>
           )}
         </div>
       </div>
       
-      <div className="mt-8 flex justify-end space-x-3">
+      <div className="mt-6 flex justify-end">
         <button
           type="button"
-          onClick={() => router.push('/admin/gallery')}
-          className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+          onClick={() => router.back()}
+          className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mr-3"
         >
           İptal
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
+          className="bg-blue-600 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 flex items-center"
         >
           {loading ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              İşleniyor...
+            </>
           ) : (
-            <FaSave className="mr-2" />
+            <>
+              <FaSave className="mr-2" />
+              Kaydet
+            </>
           )}
-          {isEditing ? 'Güncelle' : 'Kaydet'}
         </button>
       </div>
     </form>

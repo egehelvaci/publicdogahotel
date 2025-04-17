@@ -1,16 +1,10 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Header from "./components/Header";
 import { Toaster } from "react-hot-toast";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
 });
 
@@ -19,8 +13,8 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
 export const metadata: Metadata = {
-  title: "Doğa Hotel - Huzurun ve Konforun Yeni Adresi",
-  description: "Doğa Hotel, doğanın kalbinde konforlu konaklama imkanı sunan, lüks odaları ve şık restoranları ile unutulmaz bir tatil deneyimi",
+  title: "Doğa Hotel Fethiye - Residence & Seafront Hotel",
+  description: "Doga Hotel Residence & Seafront Hotel. Best hotel in Fethiye. Denize sıfır konumu ve huzurlu atmosferi ile sizleri bekliyor.",
 };
 
 export default function RootLayout({
@@ -30,12 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" style={{margin: 0, padding: 0}}>
-      <body style={{margin: 0, padding: 0}} className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body style={{margin: 0, padding: 0}} className={`${inter.className} antialiased`}>
         <Header />
         <main className="pt-0">
           {children}
         </main>
-        <Toaster position="top-center" reverseOrder={false} />
+        <Toaster position="top-right" />
         {/* Footer artık [lang] layout'ında tanımlanıyor, dil bilgisi ile birlikte */}
       </body>
     </html>

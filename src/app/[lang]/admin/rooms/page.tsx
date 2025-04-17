@@ -8,7 +8,8 @@ import {
   FaEyeSlash, 
   FaArrowUp, 
   FaArrowDown,
-  FaImages
+  FaImages,
+  FaArrowLeft
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { 
@@ -34,6 +35,8 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<RoomItem | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   
   // WebSocket bildirimlerini dinle
   const { needsRefresh, resetRefreshFlag } = useSocketNotifications();
@@ -200,8 +203,17 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
             <h1 className="text-2xl font-bold text-gray-800">
               {lang === 'tr' ? 'Odalar Yönetimi' : 'Rooms Management'}
             </h1>
-            <div className="text-gray-600 italic text-sm">
-              {lang === 'tr' ? 'Mevcut oda türleri düzenlenebilir' : 'Existing room types can be edited'}
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/${lang}/admin`}
+                className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md shadow-sm"
+              >
+                <FaArrowLeft className="mr-2" />
+                {lang === 'tr' ? 'Admin Panele Dön' : 'Back to Admin Panel'}
+              </Link>
+              <div className="text-gray-600 italic text-sm">
+                {lang === 'tr' ? 'Mevcut oda türleri düzenlenebilir' : 'Existing room types can be edited'}
+              </div>
             </div>
           </div>
           

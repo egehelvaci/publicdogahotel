@@ -1,89 +1,171 @@
-import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-// GET handler to fetch all gallery items
-export async function GET() {
+// Dynamic API route
+export const dynamic = 'force-dynamic';
+
+// GET endpoint - Galeri öğelerini listeler
+export async function GET(request: NextRequest) {
   try {
-    const query = `
-      SELECT * FROM gallery
-      ORDER BY order_number ASC
-    `;
-    
-    const result = await executeQuery(query);
-    return NextResponse.json({ success: true, items: result.rows });
+    // Tüm galeri öğelerini getir ve sırala
+    const galleryItems = await prisma.gallery.findMany({
+      orderBy: {
+        orderNumber: 'asc',
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğeleri başarıyla alındı',
+      items: galleryItems,
+    });
   } catch (error) {
-    console.error('Failed to fetch gallery items:', error);
-    return NextResponse.json({ success: false, message: 'Failed to fetch gallery items.' }, { status: 500 });
+    console.error('Galeri öğeleri alınırken hata:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Galeri öğeleri alınırken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }
 
-// POST handler for adding, updating, deleting gallery items
-export async function POST(request: Request) {
+// POST endpoint - Yeni galeri öğesi ekler
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, item, items } = body;
+    
+    // Eğer sıralama işlemi ise
+    if (body.action === 'reorder') {
+      return handleReorder(body);
+    }
+    
+    console.log('POST: API çağrısı alındı, veri:', body);
+    
+    // URL'lerin doğru bir şekilde işlendiğinden emin ol
+    const imageUrl = body.imageUrl || body.image_url || null;
+    const videoUrl = body.videoUrl || body.video_url || null;
+    
+    // Tip kontrolü
+    let type = body.type || 'image';
+    
+    // URL'lerin varlık kontrolü
+    if (!imageUrl && !videoUrl) {
+      console.error('API hatası: Görsel veya video URL\'si gerekli');
+      return NextResponse.json({
+        success: false,
+        message: 'Görsel veya video URL\'si gerekli'
+      }, { status: 400 });
+    }
 
-    // Add a new gallery item
-    if (action === 'add') {
-      const insertQuery = `
-        INSERT INTO gallery (
-          title_tr, title_en, description_tr, description_en, image_url, order_number
-        ) VALUES (
-          $1, $2, $3, $4, $5, 
-          (SELECT COALESCE(MAX(order_number), 0) + 1 FROM gallery)
-        ) RETURNING *;
-      `;
-      
-      const result = await executeQuery(insertQuery, [
-        item.titleTR || '', 
-        item.titleEN || '', 
-        item.descriptionTR || '', 
-        item.descriptionEN || '', 
-        item.image
-      ]);
-      
-      return NextResponse.json({ success: true, item: result.rows[0] });
+    // Tip ve URL tutarlılığı kontrolü
+    if (type === 'image' && !imageUrl) {
+      console.warn('API uyarısı: Tip "image" olarak belirtilmiş ama imageUrl yok. videoUrl kullanılıyor');
+      return NextResponse.json({
+        success: false,
+        message: 'Görsel tipi seçildi fakat görsel URL\'si eksik'
+      }, { status: 400 });
     }
     
-    // Update gallery item(s) order
-    if (action === 'reorder') {
-      // Başlangıçta tüm öğeleri transaction içinde güncelleyelim
-      const client = await (await executeQuery('BEGIN')).client;
-      
-      try {
-        for (let i = 0; i < items.length; i++) {
-          const updateQuery = `
-            UPDATE gallery 
-            SET order_number = $1
-            WHERE id = $2
-          `;
-          
-          await client.query(updateQuery, [i + 1, items[i].id]);
-        }
-        
-        await client.query('COMMIT');
-        
-        // Güncellenmiş galeri öğelerini getir
-        const selectQuery = `
-          SELECT * FROM gallery
-          ORDER BY order_number ASC
-        `;
-        
-        const result = await executeQuery(selectQuery);
-        return NextResponse.json({ success: true, items: result.rows });
-      } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-      } finally {
-        client.release();
+    if (type === 'video' && !videoUrl) {
+      console.warn('API uyarısı: Tip "video" olarak belirtilmiş ama videoUrl yok. imageUrl kullanılıyor');
+      return NextResponse.json({
+        success: false,
+        message: 'Video tipi seçildi fakat video URL\'si eksik'
+      }, { status: 400 });
+    }
+    
+    // URL değerine göre tipi otomatik belirle (tip belirtilmemişse)
+    if (!body.type) {
+      if (videoUrl && !imageUrl) {
+        type = 'video';
+      } else if (imageUrl && !videoUrl) {
+        type = 'image';
       }
+      // Eğer her iki URL de varsa, gelen body.type değerini kullan
     }
     
-    return NextResponse.json({ success: false, message: 'Geçersiz işlem' }, { status: 400 });
+    console.log('API: Tip ve URL\'ler doğrulandı:', { type, imageUrl, videoUrl });
+    
+    // En yüksek sıra numarasını bul ve 1 ekle
+    const nextOrder = await getNextOrderNumber();
+    
+    // Yeni galeri öğesi ekle
+    const newGalleryItem = await prisma.gallery.create({
+      data: {
+        titleTR: body.titleTR || '',
+        titleEN: body.titleEN || '',
+        descriptionTR: body.descriptionTR || '',
+        descriptionEN: body.descriptionEN || '',
+        imageUrl: type === 'image' ? imageUrl : null,
+        videoUrl: type === 'video' ? videoUrl : null,
+        type: type,
+        orderNumber: nextOrder,
+      },
+    });
+    
+    console.log('Yeni galeri öğesi oluşturuldu:', newGalleryItem);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğesi başarıyla eklendi',
+      item: newGalleryItem,
+    });
+    
   } catch (error) {
-    console.error('Gallery operation failed:', error);
-    return NextResponse.json({ success: false, message: 'Gallery operation failed.' }, { status: 500 });
+    console.error('Galeri öğesi eklenirken hata:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Galeri öğesi eklenirken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
+}
+
+// Sıralama işlemini yönetir
+async function handleReorder(body: any) {
+  try {
+    // Paralel işlemler için Promise.all kullanıyoruz
+    const updates = body.items.map((item: { id: string; orderNumber: number }) => {
+      return prisma.gallery.update({
+        where: { id: item.id },
+        data: { orderNumber: item.orderNumber },
+      });
+    });
+    
+    await Promise.all(updates);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Sıralama başarıyla güncellendi',
+    });
+  } catch (error) {
+    console.error('Sıralama güncellenirken hata:', error);
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Sıralama güncellenirken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// Bir sonraki sıra numarasını belirler
+async function getNextOrderNumber(): Promise<number> {
+  const result = await prisma.gallery.aggregate({
+    _max: {
+      orderNumber: true,
+    },
+  });
+  
+  return (result._max.orderNumber || 0) + 1;
 }
 
 // Note: We will need POST, PUT, DELETE handlers here later

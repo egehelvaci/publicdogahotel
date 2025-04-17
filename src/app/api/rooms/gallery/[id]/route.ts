@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { executeQuery } from '@/lib/db';
 import { notifyRoomsUpdated, notifyGalleryUpdated } from '../../../websocket/route';
+import { randomUUID } from 'crypto';  // UUID üreteci import ediyoruz
 
 // Define a basic interface for Room items based on usage
 interface RoomItem {
@@ -11,60 +11,43 @@ interface RoomItem {
   // Add other properties if needed based on roomsData.json structure
 }
 
-// Dosya yolu
-const roomsFilePath = path.join(process.cwd(), 'src/app/data/json/admin/roomsData.json');
-
-// JSON dosyasını okuma yardımcı fonksiyonu (Return type added)
-const readRoomsData = (): RoomItem[] => {
-  try {
-    const fileData = fs.readFileSync(roomsFilePath, 'utf8');
-    // Cast the parsed data to RoomItem[]
-    return JSON.parse(fileData) as RoomItem[];
-  } catch (error) {
-    console.error('Oda verisi okuma hatası:', error);
-    return [];
-  }
-};
-
-// JSON dosyasına yazma yardımcı fonksiyonu (Use RoomItem type)
-const writeRoomsData = (data: RoomItem[]) => {
-  try {
-    const jsonData = JSON.stringify(data, null, 2);
-    fs.writeFileSync(roomsFilePath, jsonData, 'utf8');
-    
-    // WebSocket bildirimi gönder
-    notifyRoomsUpdated();
-    notifyGalleryUpdated();
-
-    return true;
-  } catch (error) {
-    console.error('Oda verisi yazma hatası:', error);
-    return false;
-  }
-};
-
 // GET - Odanın galeri görsellerini getir
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in find callback
-    const room = rooms.find((room: RoomItem) => room.id === params.id);
-
-    if (!room) {
+    const id = params.id;
+    
+    // Odayı veritabanından getir
+    const roomQuery = `
+      SELECT * FROM rooms 
+      WHERE id = $1
+    `;
+    
+    const roomResult = await executeQuery(roomQuery, [id]);
+    
+    if (roomResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
         { status: 404 }
       );
     }
     
+    // Odanın galerisini getir
+    const galleryQuery = `
+      SELECT * FROM room_gallery
+      WHERE room_id = $1
+      ORDER BY order_number ASC
+    `;
+    
+    const galleryResult = await executeQuery(galleryQuery, [id]);
+    
     return NextResponse.json({
       success: true,
       data: {
-        mainImage: room.image,
-        gallery: room.gallery || []
+        mainImage: roomResult.rows[0].main_image_url,
+        gallery: galleryResult.rows.map(item => item.image_url)
       }
     });
   } catch (error) {
@@ -82,14 +65,36 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const id = params.id;
     const body = await request.json();
-    const { gallery, mainImage } = body;
+    console.log('Gelen galeri verileri:', JSON.stringify(body, null, 2));
+    
+    // Kontrol - formatlı galeri veya normal galeri array'i
+    let galleryUrls: string[] = [];
+    const { mainImageUrl } = body;
+    
+    // Formatlı galeri kontrolü ({ id, imageUrl } nesneleri)
+    if (body.gallery && Array.isArray(body.gallery) && body.gallery.length > 0) {
+      if (typeof body.gallery[0] === 'object' && body.gallery[0].imageUrl) {
+        // Formatlı galeri - imageUrl'leri al
+        galleryUrls = body.gallery.map((item: { imageUrl: string }) => item.imageUrl);
+        console.log('Formatlı galeriden URL listesi oluşturuldu:', galleryUrls.length);
+      } else {
+        // Normal string dizisi
+        galleryUrls = body.gallery;
+        console.log('Normal string dizisi kullanıldı:', galleryUrls.length);
+      }
+    }
 
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in findIndex callback
-    const roomIndex = rooms.findIndex((room: RoomItem) => room.id === params.id);
-
-    if (roomIndex === -1) {
+    // Odayı veritabanından getir
+    const roomQuery = `
+      SELECT * FROM rooms 
+      WHERE id = $1
+    `;
+    
+    const roomResult = await executeQuery(roomQuery, [id]);
+    
+    if (roomResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
         { status: 404 }
@@ -97,44 +102,80 @@ export async function PUT(
     }
     
     // Galerinin dizi olduğundan emin ol
-    if (!Array.isArray(gallery)) {
+    if (!Array.isArray(galleryUrls)) {
       return NextResponse.json(
         { success: false, message: 'Galeri bir dizi olmalıdır' },
         { status: 400 }
       );
     }
     
-    // Ana görsel geçerliyse güncelle
-    if (mainImage) {
-      rooms[roomIndex].image = mainImage;
-      
-      // Ana görsel galeriye eklenmediyse ekle
-      if (!gallery.includes(mainImage)) {
-        rooms[roomIndex].gallery = [mainImage, ...gallery];
-      } else {
-        rooms[roomIndex].gallery = gallery;
+    // İşlemler için transaction başlat
+    const client = await (await executeQuery('BEGIN')).client;
+    
+    try {
+      // Ana görseli güncelle
+      if (mainImageUrl) {
+        const updateRoomQuery = `
+          UPDATE rooms 
+          SET main_image_url = $1
+          WHERE id = $2
+        `;
+        
+        await client.query(updateRoomQuery, [mainImageUrl, id]);
       }
-    } else {
-      rooms[roomIndex].gallery = gallery;
-    }
-    
-    // Verileri kaydet
-    const success = writeRoomsData(rooms);
-    
-    if (success) {
+      
+      // Mevcut galeri öğelerini sil
+      const deleteGalleryQuery = `
+        DELETE FROM room_gallery
+        WHERE room_id = $1
+      `;
+      
+      await client.query(deleteGalleryQuery, [id]);
+      
+      // Yeni galeri öğelerini ekle
+      for (let i = 0; i < galleryUrls.length; i++) {
+        // UUID oluştur - NOT NULL constraint için
+        const galleryItemId = randomUUID();
+        
+        const insertGalleryQuery = `
+          INSERT INTO room_gallery (id, room_id, image_url, order_number)
+          VALUES ($1, $2, $3, $4)
+        `;
+        
+        await client.query(insertGalleryQuery, [galleryItemId, id, galleryUrls[i], i + 1]);
+      }
+      
+      // Transaction'ı tamamla
+      await client.query('COMMIT');
+      
+      // WebSocket bildirimi gönder
+      notifyRoomsUpdated();
+      notifyGalleryUpdated();
+      
+      // Güncellenmiş galeriyi getir
+      const updatedQuery = `
+        SELECT * FROM room_gallery
+        WHERE room_id = $1
+        ORDER BY order_number ASC
+      `;
+      
+      const updatedGallery = await executeQuery(updatedQuery, [id]);
+      const updatedRoom = await executeQuery('SELECT * FROM rooms WHERE id = $1', [id]);
+      
       return NextResponse.json({
         success: true,
         data: {
-          mainImage: rooms[roomIndex].image,
-          gallery: rooms[roomIndex].gallery
+          mainImage: updatedRoom.rows[0].main_image_url,
+          gallery: updatedGallery.rows.map(item => item.image_url)
         },
         message: 'Galeri başarıyla güncellendi'
       });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Galeri güncellenirken bir hata oluştu' },
-        { status: 500 }
-      );
+    } catch (error) {
+      // Hata durumunda rollback yap
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Galeri güncelleme hatası:', error);
@@ -151,6 +192,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const id = params.id;
     const body = await request.json();
     const { imagePath } = body;
     
@@ -161,11 +203,15 @@ export async function POST(
       );
     }
 
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in findIndex callback
-    const roomIndex = rooms.findIndex((room: RoomItem) => room.id === params.id);
-
-    if (roomIndex === -1) {
+    // Odanın var olup olmadığını kontrol et
+    const roomQuery = `
+      SELECT * FROM rooms 
+      WHERE id = $1
+    `;
+    
+    const roomResult = await executeQuery(roomQuery, [id]);
+    
+    if (roomResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
         { status: 404 }
@@ -173,34 +219,59 @@ export async function POST(
     }
     
     // Görsel zaten galeriye eklenmiş mi kontrol et
-    if (rooms[roomIndex].gallery.includes(imagePath)) {
+    const checkQuery = `
+      SELECT * FROM room_gallery
+      WHERE room_id = $1 AND image_url = $2
+    `;
+    
+    const checkResult = await executeQuery(checkQuery, [id, imagePath]);
+    
+    if (checkResult.rows.length > 0) {
       return NextResponse.json({
         success: false,
         message: 'Bu görsel zaten galeride mevcut'
       });
     }
     
+    // Toplam galeri öğesi sayısını bul
+    const countQuery = `
+      SELECT COUNT(*) as count FROM room_gallery
+      WHERE room_id = $1
+    `;
+    
+    const countResult = await executeQuery(countQuery, [id]);
+    const orderNumber = parseInt(countResult.rows[0].count) + 1;
+    
     // Görseli galeriye ekle
-    rooms[roomIndex].gallery = [...rooms[roomIndex].gallery, imagePath];
+    const insertQuery = `
+      INSERT INTO room_gallery (room_id, image_url, order_number)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
     
-    // Verileri kaydet
-    const success = writeRoomsData(rooms);
+    await executeQuery(insertQuery, [id, imagePath, orderNumber]);
     
-    if (success) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          mainImage: rooms[roomIndex].image,
-          gallery: rooms[roomIndex].gallery
-        },
-        message: 'Görsel galeriye eklendi'
-      });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Görsel eklenirken bir hata oluştu' },
-        { status: 500 }
-      );
-    }
+    // WebSocket bildirimi gönder
+    notifyRoomsUpdated();
+    notifyGalleryUpdated();
+    
+    // Güncellenmiş galeriyi getir
+    const updatedQuery = `
+      SELECT * FROM room_gallery
+      WHERE room_id = $1
+      ORDER BY order_number ASC
+    `;
+    
+    const updatedGallery = await executeQuery(updatedQuery, [id]);
+    
+    return NextResponse.json({
+      success: true,
+      data: {
+        mainImage: roomResult.rows[0].main_image_url,
+        gallery: updatedGallery.rows.map(item => item.image_url)
+      },
+      message: 'Görsel galeriye eklendi'
+    });
   } catch (error) {
     console.error('Görsel ekleme hatası:', error);
     return NextResponse.json(
@@ -216,6 +287,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const id = params.id;
+    
     // URL parametrelerini al
     const { searchParams } = new URL(request.url);
     const imagePath = searchParams.get('imagePath');
@@ -227,11 +300,15 @@ export async function DELETE(
       );
     }
 
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in findIndex callback
-    const roomIndex = rooms.findIndex((room: RoomItem) => room.id === params.id);
-
-    if (roomIndex === -1) {
+    // Odanın var olup olmadığını kontrol et
+    const roomQuery = `
+      SELECT * FROM rooms 
+      WHERE id = $1
+    `;
+    
+    const roomResult = await executeQuery(roomQuery, [id]);
+    
+    if (roomResult.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
         { status: 404 }
@@ -239,7 +316,7 @@ export async function DELETE(
     }
     
     // Ana görsel silinmeye çalışılıyorsa engelle
-    if (rooms[roomIndex].image === imagePath) {
+    if (roomResult.rows[0].main_image_url === imagePath) {
       return NextResponse.json(
         { 
           success: false, 
@@ -249,28 +326,72 @@ export async function DELETE(
       );
     }
     
-    // Görseli galeriden çıkar (Type for img is already string, no change needed here)
-    rooms[roomIndex].gallery = rooms[roomIndex].gallery.filter(
-      (img: string) => img !== imagePath
-    );
-
-    // Verileri kaydet
-    const success = writeRoomsData(rooms);
+    // İşlemler için transaction başlat
+    const client = await (await executeQuery('BEGIN')).client;
     
-    if (success) {
+    try {
+      // Görseli galeriden sil
+      const deleteQuery = `
+        DELETE FROM room_gallery
+        WHERE room_id = $1 AND image_url = $2
+        RETURNING *
+      `;
+      
+      const deleteResult = await client.query(deleteQuery, [id, imagePath]);
+      
+      if (deleteResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return NextResponse.json(
+          { success: false, message: 'Görsel galeride bulunamadı' },
+          { status: 404 }
+        );
+      }
+      
+      // Sıra numaralarını yeniden düzenle
+      const reorderQuery = `
+        WITH ranked AS (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY order_number) as new_order
+          FROM room_gallery
+          WHERE room_id = $1
+        )
+        UPDATE room_gallery
+        SET order_number = ranked.new_order
+        FROM ranked
+        WHERE room_gallery.id = ranked.id
+      `;
+      
+      await client.query(reorderQuery, [id]);
+      
+      // Transaction'ı tamamla
+      await client.query('COMMIT');
+      
+      // WebSocket bildirimi gönder
+      notifyRoomsUpdated();
+      notifyGalleryUpdated();
+      
+      // Güncellenmiş galeriyi getir
+      const updatedQuery = `
+        SELECT * FROM room_gallery
+        WHERE room_id = $1
+        ORDER BY order_number ASC
+      `;
+      
+      const updatedGallery = await executeQuery(updatedQuery, [id]);
+      
       return NextResponse.json({
         success: true,
         data: {
-          mainImage: rooms[roomIndex].image,
-          gallery: rooms[roomIndex].gallery
+          mainImage: roomResult.rows[0].main_image_url,
+          gallery: updatedGallery.rows.map(item => item.image_url)
         },
         message: 'Görsel galeriden kaldırıldı'
       });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Görsel kaldırılırken bir hata oluştu' },
-        { status: 500 }
-      );
+    } catch (error) {
+      // Hata durumunda rollback yap
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Görsel kaldırma hatası:', error);

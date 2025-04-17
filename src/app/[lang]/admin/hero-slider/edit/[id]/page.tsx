@@ -7,7 +7,10 @@ import { FaArrowLeft, FaSave, FaTrashAlt } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import AdminHeader from '@/app/components/admin/AdminHeader';
 import { getAllSliderData, updateSliderItem, deleteSliderItem, SliderItem } from '@/app/data/admin/sliderData';
-import MediaUploader from '@/app/components/admin/MediaUploader';
+import MediaUploader from '@/components/ui/MediaUploader';
+import ImageKitImage from '@/components/ui/ImageKitImage';
+import ImageKitVideo from '@/components/ui/ImageKitVideo';
+import { toast } from 'react-hot-toast';
 
 // Corrected EditSliderPageProps interface
 interface EditSliderPageProps {
@@ -17,20 +20,27 @@ interface EditSliderPageProps {
   };
 }
 
+// Axios hatası için yardımcı tip tanımı
+interface AxiosError extends Error {
+  response?: {
+    data: any;
+    status: number;
+  };
+}
+
 export default function EditSliderPage({ params }: EditSliderPageProps) {
-  // Removed unnecessary React.use() call
-  // const resolvedParams = React.use(params);
-  const lang = params.lang || 'tr'; // Get lang directly from params
-  const id = params.id; // Get id directly from params
+  // React.use() kullanmadan önce params değerini çöz
+  const resolvedParams = React.use(params);
+  const lang = resolvedParams.lang || 'tr';
+  const id = resolvedParams.id;
 
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [formData, setFormData] = useState<SliderItem>({
-    id: '',
+  const [sliderItem, setSliderItem] = useState<SliderItem | null>(null);
+  const [formData, setFormData] = useState<Partial<SliderItem>>({
     image: '',
     videoUrl: '',
     titleTR: '',
@@ -39,9 +49,27 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
     subtitleEN: '',
     descriptionTR: '',
     descriptionEN: '',
-    order: 0,
     active: true
   });
+
+  // Medya türünü dosya uzantısına göre belirle
+  const isVideoFile = (url: string): boolean => {
+    if (!url) return false;
+    
+    // URL'den dosya türünü tespit et
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.quicktime'];
+    const hasVideoExtension = videoExtensions.some(ext => url.toLowerCase().includes(ext));
+    
+    // Diğer ipuçlarını kontrol et
+    const hasVideoPath = url.toLowerCase().includes('/videos/') || url.toLowerCase().includes('/video/');
+    const hasVideoQuery = url.toLowerCase().includes('video=') || url.toLowerCase().includes('type=video');
+    
+    // Tebi'nin dosya URL'si içindeki belirli desenleri kontrol et
+    const isTebiVideoUrl = url.includes('s3.tebi.io') && 
+                          (url.includes('video') || url.includes('mov') || url.includes('mp4'));
+    
+    return hasVideoExtension || hasVideoPath || hasVideoQuery || isTebiVideoUrl;
+  };
 
   // Slider verisini yükle
   useEffect(() => {
@@ -61,8 +89,21 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
           return;
         }
 
-        setFormData(item);
-      } catch (err: unknown) { // Changed 'any' to 'unknown'
+        setSliderItem(item);
+        // Tipleri uyumlu hale getir ve null değerleri boş string yap
+        setFormData({
+          ...item,
+          videoUrl: item.videoUrl || '',
+          subtitleTR: item.subtitleTR || '',
+          subtitleEN: item.subtitleEN || '',
+          descriptionTR: item.descriptionTR || '',
+          descriptionEN: item.descriptionEN || '',
+          // title alanlari required olduğu için boş string olmamalı
+          titleTR: item.titleTR || '',
+          titleEN: item.titleEN || '',
+          image: item.image || ''
+        });
+      } catch (err: unknown) {
         console.error('Slider verisi alınırken hata:', err);
         let errorMessage = 'Bilinmeyen hata';
         if (err instanceof Error) {
@@ -113,29 +154,96 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
     }
 
     try {
-      const result = await updateSliderItem(formData.id, {
-        image: formData.image,
-        videoUrl: formData.videoUrl,
-        titleTR: formData.titleTR,
-        titleEN: formData.titleEN,
-        subtitleTR: formData.subtitleTR,
-        subtitleEN: formData.subtitleEN,
-        descriptionTR: formData.descriptionTR,
-        descriptionEN: formData.descriptionEN,
-        active: formData.active
-      });
-
-      if (result) {
-        router.push(`/${lang}/admin/hero-slider`);
+      console.log('Slider güncelleme başlatılıyor. ID:', id, 'Veriler:', formData);
+      
+      const updateData = {
+        image: formData.image || '',
+        videoUrl: formData.videoUrl || '',
+        titleTR: formData.titleTR || '',
+        titleEN: formData.titleEN || '',
+        subtitleTR: formData.subtitleTR || '',
+        subtitleEN: formData.subtitleEN || '',
+        descriptionTR: formData.descriptionTR || '',
+        descriptionEN: formData.descriptionEN || '',
+        active: formData.active === undefined ? true : formData.active
+      };
+      
+      // Önce mevcut veriyi al, değişen alanları bul ve sadece onları gönder
+      if (sliderItem) {
+        const changedFields = Object.entries(updateData).reduce((acc: Record<string, any>, [key, value]) => {
+          // sliderItem'in bu özellikleri var, null ve undefined kontrolü yapalım
+          const itemValue = (sliderItem as any)[key];
+          
+          // String değerler için "null" ve "undefined" kontrolü
+          if (typeof value === 'string' && (itemValue === null || itemValue === undefined)) {
+            // sliderItem'de null/undefined ise ve yeni değer boş string değilse
+            if (value !== '') {
+              acc[key] = value;
+            }
+          } 
+          // Boolean değerler için doğrudan karşılaştır
+          else if (typeof value === 'boolean' && itemValue !== value) {
+            acc[key] = value;
+          }
+          // Diğer durumlarda eşit değilse ekle
+          else if (itemValue !== value) {
+            acc[key] = value;
+          }
+          
+          return acc;
+        }, {});
+        
+        console.log('Değişen alanlar:', changedFields);
+        
+        if (Object.keys(changedFields).length === 0) {
+          console.log('Değişiklik yok, güncelleme yapılmayacak');
+          router.push(`/${lang}/admin/hero-slider`);
+          return;
+        }
+        
+        const result = await updateSliderItem(id, changedFields);
+        console.log('Slider güncelleme başarılı, sonuç:', result);
+        
+        if (result) {
+          router.push(`/${lang}/admin/hero-slider`);
+        } else {
+          setError('Slider öğesi güncellenirken bir hata oluştu.');
+        }
       } else {
-        setError('Slider öğesi güncellenirken bir hata oluştu.');
+        // sliderItem null ise tüm alanları gönder
+        const result = await updateSliderItem(id, updateData);
+        
+        if (result) {
+          console.log('Slider güncelleme başarılı, sonuç:', result);
+          router.push(`/${lang}/admin/hero-slider`);
+        } else {
+          setError('Slider öğesi güncellenirken bir hata oluştu.');
+        }
       }
-    } catch (err: unknown) { // Changed 'any' to 'unknown'
+    } catch (err: unknown) {
       console.error('Slider güncelleme hatası:', err);
+      
       let errorMessage = 'Bilinmeyen hata';
+      
       if (err instanceof Error) {
         errorMessage = err.message;
+        
+        // Axios hata yanıtını kontrol et
+        const axiosErr = err as AxiosError;
+        if (axiosErr.response && axiosErr.response.data) {
+          const responseData = axiosErr.response.data;
+          
+          if (responseData.error) {
+            errorMessage = responseData.error;
+          } else if (responseData.message) {
+            errorMessage = responseData.message;
+          }
+          
+          // HTTP durum kodunu logla
+          console.error('HTTP durum kodu:', axiosErr.response.status);
+        }
       }
+      
       setError(`Hata: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
@@ -143,7 +251,7 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
   };
   
   const handleDelete = async () => {
-    setIsDeleting(true);
+    setIsSubmitting(true);
     
     try {
       const success = await deleteSliderItem(id);
@@ -154,7 +262,7 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
         setError('Slider silinirken bir hata oluştu.');
         setShowDeleteConfirm(false);
       }
-    } catch (err: unknown) { // Changed 'any' to 'unknown'
+    } catch (err: unknown) {
       console.error('Silme hatası:', err);
       let errorMessage = 'Bilinmeyen hata';
       if (err instanceof Error) {
@@ -162,25 +270,49 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
       }
       setError(`Hata: ${errorMessage}`);
     } finally {
-      setIsDeleting(false);
+      setIsSubmitting(false);
     }
   };
 
   // Görsel yükleme işlemi tamamlandığında çağrılacak fonksiyon
-  const handleMediaUploaded = (url: string, fileType: string) => {
-    if (fileType === 'video') {
-      // Video yüklendiyse videoUrl alanını güncelle
+  const handleMediaUploaded = (result: {url: string, fileId: string, fileType: string}) => {
+    if (!result.url) {
+      setError('Dosya yükleme başarısız oldu. Lütfen tekrar deneyin.');
+      return;
+    }
+    
+    console.log('Medya yükleme sonucu:', result);
+    
+    // Dosya türünü belirle
+    const isVideo = result.fileType === 'video' || isVideoFile(result.url);
+    console.log(`Medya türü: ${isVideo ? 'Video' : 'Görsel'}, URL: ${result.url}`);
+    
+    if (isVideo) {
+      console.log("Video dosyası algılandı, formData güncelleniyor...");
+      // Video yüklendiyse videoUrl alanını güncelle, image'ı temizle
       setFormData({
         ...formData,
-        videoUrl: url
+        videoUrl: result.url,
+        image: '' // Görsel alanını temizle
       });
     } else {
-      // Görsel yüklendiyse image alanını güncelle
+      console.log("Görsel dosyası algılandı, formData güncelleniyor...");
+      // Görsel yüklendiyse image alanını güncelle, videoUrl'ı temizle
       setFormData({
         ...formData,
-        image: url
+        image: result.url,
+        videoUrl: '' // Video alanını temizle
       });
     }
+    
+    // Başarı mesajı göster
+    toast.success(`${isVideo ? 'Video' : 'Görsel'} başarıyla yüklendi!`);
+    
+    console.log('Form durumu güncellendi:', {
+      ...formData,
+      videoUrl: isVideo ? result.url : '',
+      image: !isVideo ? result.url : ''
+    });
   };
 
   if (isLoading) {
@@ -231,31 +363,33 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label className="block mb-2 font-medium">Görsel</label>
+            <div>
+              <label className="block mb-2 font-medium">Medya (Görsel veya Video)</label>
+              <div className="p-4 border border-dashed border-gray-300 rounded-md bg-gray-50">
                 <MediaUploader 
-                  onMediaUploaded={handleMediaUploaded}
+                  onUpload={handleMediaUploaded}
+                  type="any"
                   folder="slider"
-                  existingMedia={formData.image}
-                  type="image"
+                  label="Görsel veya Video Yükle"
+                  maxSizeMB={100}
+                  apiEndpoint="/api/upload"
+                  initialUrl={formData.image || formData.videoUrl}
                 />
-                {!formData.image && !formData.videoUrl && (
-                  <p className="text-gray-500 text-sm mt-1">Görsel veya video yüklemeniz gereklidir</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block mb-2 font-medium">Video</label>
-                <MediaUploader
-                  onMediaUploaded={handleMediaUploaded}
-                  folder="slider"
-                  existingMedia={formData.videoUrl}
-                  type="video"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  İsteğe bağlı: Arka plan videosu yükleyin (MP4 formatı önerilir)
+                
+                <p className="text-sm text-gray-500 mt-2 mb-4">
+                  Slider için bir görsel veya video yükleyin. Görsel için JPG/PNG, video için MP4 formatı önerilir.
                 </p>
+                
+                {!formData.image && !formData.videoUrl && (
+                  <p className="text-amber-600 text-sm mt-2">Bir görsel veya video eklemelisiniz</p>
+                )}
+                
+                {(formData.image || formData.videoUrl) && (
+                  <div className="mt-2 p-2 bg-green-50 text-green-700 rounded-md text-sm flex items-center">
+                    <span className="mr-2">✓</span>
+                    {formData.image ? 'Görsel' : 'Video'} yüklendi
+                  </div>
+                )}
               </div>
             </div>
 
@@ -333,47 +467,27 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    checked={formData.active}
-                    onChange={(e) => setFormData({...formData, active: e.target.checked})}
-                    className="mr-2 h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <span>Aktif (Sitede göster)</span>
-                </label>
-              </div>
-
-              <div>
-                <label className="block mb-2 font-medium">Sıralama</label>
+            <div>
+              <label className="flex items-center">
                 <input
-                  type="number"
-                  name="order"
-                  value={formData.order}
+                  type="checkbox"
+                  name="active"
+                  checked={formData.active}
                   onChange={handleChange}
-                  min={1}
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mr-2 h-5 w-5 rounded text-blue-600 focus:ring-blue-500"
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Düşük sayı olan öğeler önce gösterilir (1, 2, 3 vb.)
-                </p>
-              </div>
+                <span className="text-gray-700">Aktif</span>
+              </label>
+              <p className="mt-1 text-sm text-gray-500">
+                Bu seçeneği işaretlerseniz, slider ana sayfada görüntülenir.
+              </p>
             </div>
 
-            <div className="flex justify-end mt-8">
-              <Link
-                href={`/${lang}/admin/hero-slider`}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-4 hover:bg-gray-300"
-              >
-                İptal
-              </Link>
+            <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
               >
                 {isSubmitting ? (
                   <>
@@ -392,29 +506,30 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
         </div>
       </div>
 
-      {/* Silme Onay Modal */}
+      {/* Silme onay modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Slider'ı Sil</h3> {/* Replaced ' with ' */}
-            <p className="mb-6">Bu slider'ı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.</p> {/* Replaced ' with ' */}
-
-            <div className="flex justify-end">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md mx-4 w-full">
+            <h3 className="text-xl font-bold mb-4">Slider'ı Sil</h3>
+            <p className="mb-6 text-gray-600">
+              Bu slider'ı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </p>
+            <div className="flex justify-end space-x-4">
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-4 hover:bg-gray-300"
-                disabled={isDeleting}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
+                disabled={isSubmitting}
               >
                 İptal
               </button>
               <button
                 type="button"
                 onClick={handleDelete}
-                disabled={isDeleting}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+                disabled={isSubmitting}
               >
-                {isDeleting ? (
+                {isSubmitting ? (
                   <>
                     <BiLoader className="animate-spin mr-2" />
                     Siliniyor...

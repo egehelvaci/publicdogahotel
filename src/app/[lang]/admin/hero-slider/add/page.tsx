@@ -7,7 +7,10 @@ import { FaArrowLeft, FaSave } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import AdminHeader from '@/app/components/admin/AdminHeader';
 import { addSliderItem, SliderItem } from '@/app/data/admin/sliderData';
-import MediaUploader from '@/app/components/admin/MediaUploader';
+import MediaUploader from '@/components/ui/MediaUploader';
+import ImageKitImage from '@/components/ui/ImageKitImage';
+import ImageKitVideo from '@/components/ui/ImageKitVideo';
+import { toast } from 'react-hot-toast';
 
 // Corrected AddSliderPageProps interface
 interface AddSliderPageProps {
@@ -17,9 +20,9 @@ interface AddSliderPageProps {
 }
 
 export default function AddSliderPage({ params }: AddSliderPageProps) {
-  // Removed unnecessary React.use() call
-  // const resolvedParams = React.use(params);
-  const lang = params.lang || 'tr'; // Get lang directly from params
+  // React.use kullanarak params değerine eriş
+  const resolvedParams = React.use(params);
+  const lang = resolvedParams.lang || 'tr';
 
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +38,25 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
     descriptionEN: '',
     active: true
   });
+
+  // Medya türünü dosya uzantısına göre belirle
+  const isVideoFile = (url: string): boolean => {
+    if (!url) return false;
+    
+    // URL'den dosya türünü tespit et
+    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.quicktime'];
+    const hasVideoExtension = videoExtensions.some(ext => url.toLowerCase().includes(ext));
+    
+    // Diğer ipuçlarını kontrol et
+    const hasVideoPath = url.toLowerCase().includes('/videos/') || url.toLowerCase().includes('/video/');
+    const hasVideoQuery = url.toLowerCase().includes('video=') || url.toLowerCase().includes('type=video');
+    
+    // Tebi'nin dosya URL'si içindeki belirli desenleri kontrol et
+    const isTebiVideoUrl = url.includes('s3.tebi.io') && 
+                          (url.includes('video') || url.includes('mov') || url.includes('mp4'));
+    
+    return hasVideoExtension || hasVideoPath || hasVideoQuery || isTebiVideoUrl;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -72,24 +94,34 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
     }
 
     try {
-      const result = await addSliderItem({
-        image: formData.image,
-        videoUrl: formData.videoUrl,
-        titleTR: formData.titleTR,
-        titleEN: formData.titleEN,
-        subtitleTR: formData.subtitleTR,
-        subtitleEN: formData.subtitleEN,
-        descriptionTR: formData.descriptionTR,
-        descriptionEN: formData.descriptionEN,
+      // API isteği gönderilmeden önce log
+      console.log('Slider ekleme isteği gönderiliyor:', JSON.stringify(formData, null, 2));
+
+      // Boş string olan alanları undefined olarak gönder (API null olarak dönüştürecek)
+      const payload = {
+        image: formData.image || undefined,
+        videoUrl: formData.videoUrl || undefined,
+        titleTR: formData.titleTR.trim(),
+        titleEN: formData.titleEN.trim(),
+        subtitleTR: formData.subtitleTR.trim() || undefined,
+        subtitleEN: formData.subtitleEN.trim() || undefined,
+        descriptionTR: formData.descriptionTR.trim() || undefined,
+        descriptionEN: formData.descriptionEN.trim() || undefined,
         active: formData.active
-      });
+      };
+
+      const result = await addSliderItem(payload);
+
+      // API yanıtını kontrol et
+      console.log('Slider ekleme API yanıtı:', result);
 
       if (result) {
+        toast.success('Slider başarıyla eklendi');
         router.push(`/${lang}/admin/hero-slider`);
       } else {
-        setError('Slider öğesi eklenirken bir hata oluştu.');
+        setError('Slider öğesi eklenirken bir hata oluştu. Lütfen tüm alanları kontrol edin.');
       }
-    } catch (err: unknown) { // Changed 'any' to 'unknown'
+    } catch (err: unknown) {
       console.error('Slider ekleme hatası:', err);
       let errorMessage = 'Bilinmeyen hata';
       if (err instanceof Error) {
@@ -102,19 +134,48 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
   };
 
   // Görsel yükleme işlemi tamamlandığında çağrılacak fonksiyon
-  const handleMediaUploaded = (url: string, fileType: string) => {
-    if (fileType === 'video') {
-      // Video yüklendiyse videoUrl alanını güncelle
-      setFormData({
+  const handleMediaUploaded = (result: {url: string, fileId: string, fileType: string}) => {
+    if (!result.url) {
+      setError('Dosya yükleme başarısız oldu. Lütfen tekrar deneyin.');
+      return;
+    }
+    
+    console.log('Medya yükleme sonucu:', result);
+    
+    try {
+      // Yüklenen medya türüne göre state'i güncelle
+      const isVideo = result.fileType === 'video' || isVideoFile(result.url);
+      console.log(`Medya türü: ${isVideo ? 'Video' : 'Görsel'}, URL: ${result.url}`);
+
+      if (isVideo) {
+        console.log("Video dosyası algılandı, formData güncelleniyor...");
+        // Video yüklendiyse videoUrl alanını güncelle, image'ı temizle
+        setFormData({
+          ...formData,
+          videoUrl: result.url,
+          image: '' // Görsel alanını temizle
+        });
+      } else {
+        console.log("Görsel dosyası algılandı, formData güncelleniyor...");
+        // Görsel yüklendiyse image alanını güncelle, videoUrl'ı temizle
+        setFormData({
+          ...formData,
+          image: result.url,
+          videoUrl: '' // Video alanını temizle
+        });
+      }
+      
+      // Başarı mesajı göster
+      toast.success(`${isVideo ? 'Video' : 'Görsel'} başarıyla yüklendi!`);
+      
+      console.log('Form durumu güncellendi:', {
         ...formData,
-        videoUrl: url
+        videoUrl: isVideo ? result.url : '',
+        image: !isVideo ? result.url : ''
       });
-    } else {
-      // Görsel yüklendiyse image alanını güncelle
-      setFormData({
-        ...formData,
-        image: url
-      });
+    } catch (err) {
+      console.error('Medya state güncelleme hatası:', err);
+      setError('Medya bilgisi formda güncellenirken hata oluştu.');
     }
   };
 
@@ -141,31 +202,35 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label className="block mb-2 font-medium">Görsel</label>
-                <MediaUploader
-                  onMediaUploaded={handleMediaUploaded}
+            <div>
+              <label className="block mb-2 font-medium">Medya (Görsel veya Video)</label>
+              <div className="p-4 border border-dashed border-gray-300 rounded-md bg-gray-50">
+                <MediaUploader 
+                  onUpload={(result) => {
+                    console.log('MediaUploader sonucu:', result);
+                    handleMediaUploaded(result);
+                  }}
+                  type="any"
                   folder="slider"
-                  existingMedia={formData.image}
-                  type="image"
+                  label="Görsel veya Video Yükle"
+                  maxSizeMB={100}
+                  apiEndpoint="/api/upload"
                 />
-                {!formData.image && !formData.videoUrl && (
-                  <p className="text-gray-500 text-sm mt-1">Görsel veya video yüklemeniz gereklidir</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block mb-2 font-medium">Video</label>
-                <MediaUploader
-                  onMediaUploaded={handleMediaUploaded}
-                  folder="slider"
-                  existingMedia={formData.videoUrl}
-                  type="video"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  İsteğe bağlı: Arka plan videosu yükleyin (MP4 formatı önerilir)
+                
+                <p className="text-sm text-gray-500 mt-2 mb-4">
+                  Slider için bir görsel veya video yükleyin. Görsel için JPG/PNG, video için MP4 formatı önerilir.
                 </p>
+                
+                {!formData.image && !formData.videoUrl && (
+                  <p className="text-amber-600 text-sm mt-2">Bir görsel veya video eklemelisiniz</p>
+                )}
+                
+                {(formData.image || formData.videoUrl) && (
+                  <div className="mt-2 p-2 bg-green-50 text-green-700 rounded-md text-sm flex items-center">
+                    <span className="mr-2">✓</span>
+                    {formData.image ? 'Görsel' : 'Video'} başarıyla yüklendi
+                  </div>
+                )}
               </div>
             </div>
 
@@ -249,29 +314,26 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
                   type="checkbox"
                   name="active"
                   checked={formData.active}
-                  onChange={(e) => setFormData({...formData, active: e.target.checked})}
-                  className="mr-2 h-5 w-5 text-blue-600 rounded focus:ring-blue-500"
+                  onChange={handleChange}
+                  className="mr-2 h-5 w-5 rounded text-blue-600 focus:ring-blue-500"
                 />
-                <span>Aktif (Sitede göster)</span>
+                <span className="text-gray-700">Aktif</span>
               </label>
+              <p className="mt-1 text-sm text-gray-500">
+                Bu seçeneği işaretlerseniz, slider ana sayfada görüntülenir.
+              </p>
             </div>
 
-            <div className="flex justify-end mt-8">
-              <Link
-                href={`/${lang}/admin/hero-slider`}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md mr-4 hover:bg-gray-300"
-              >
-                İptal
-              </Link>
+            <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center"
               >
                 {isSubmitting ? (
                   <>
                     <BiLoader className="animate-spin mr-2" />
-                    Kaydediliyor...
+                    Ekleniyor...
                   </>
                 ) : (
                   <>

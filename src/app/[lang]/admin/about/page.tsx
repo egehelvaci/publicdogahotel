@@ -21,8 +21,7 @@ export default function AboutAdminPage({ params }: PageProps) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
   
-  const heroImageRef = useRef<HTMLInputElement>(null);
-  const mainImageRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Form durumları
   const [titleTR, setTitleTR] = useState('');
@@ -33,6 +32,7 @@ export default function AboutAdminPage({ params }: PageProps) {
   const [contentEN, setContentEN] = useState<string>('');
   const [badgesTR, setBadgesTR] = useState<string>('');
   const [badgesEN, setBadgesEN] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
 
   // API'den verileri çek
   useEffect(() => {
@@ -58,6 +58,7 @@ export default function AboutAdminPage({ params }: PageProps) {
         setContentEN(data.contentEN.join('\n\n'));
         setBadgesTR(data.badgesTR.join(', '));
         setBadgesEN(data.badgesEN.join(', '));
+        setImageUrl(data.imageUrl || '');
         
       } catch (error) {
         console.error('Veri çekme hatası:', error);
@@ -74,8 +75,8 @@ export default function AboutAdminPage({ params }: PageProps) {
   }, []);
 
   // Resim yükleme işlemi
-  const handleImageUpload = async (imageType: 'heroImage' | 'mainImage') => {
-    const fileInput = imageType === 'heroImage' ? heroImageRef.current : mainImageRef.current;
+  const handleImageUpload = async () => {
+    const fileInput = imageInputRef.current;
     
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
       setMessage({ text: 'Lütfen bir resim seçin.', type: 'error' });
@@ -84,8 +85,7 @@ export default function AboutAdminPage({ params }: PageProps) {
     
     const file = fileInput.files[0];
     const formData = new FormData();
-    formData.append('image', file);
-    formData.append('type', imageType);
+    formData.append('file', file);
     
     setSaving(true);
     setMessage(null);
@@ -105,10 +105,14 @@ export default function AboutAdminPage({ params }: PageProps) {
       
       if (result.success) {
         // Başarılı ise state'i güncelle
+        setImageUrl(result.url);
+        
         if (aboutData) {
           setAboutData({
             ...aboutData,
-            [imageType]: result.data.path
+            heroImage: result.url,
+            mainImage: result.url,
+            imageUrl: result.url
           });
         }
         
@@ -150,7 +154,8 @@ export default function AboutAdminPage({ params }: PageProps) {
         contentTR: contentTR.split('\n\n').filter(paragraph => paragraph.trim() !== ''),
         contentEN: contentEN.split('\n\n').filter(paragraph => paragraph.trim() !== ''),
         badgesTR: badgesTR.split(',').map(badge => badge.trim()).filter(badge => badge !== ''),
-        badgesEN: badgesEN.split(',').map(badge => badge.trim()).filter(badge => badge !== '')
+        badgesEN: badgesEN.split(',').map(badge => badge.trim()).filter(badge => badge !== ''),
+        imageUrl
       };
       
       const response = await fetch('/api/admin/about', {
@@ -217,89 +222,49 @@ export default function AboutAdminPage({ params }: PageProps) {
 
         {/* Görsel Yükleme Bölümü */}
         <div className="bg-white shadow-md rounded-lg mb-6 p-6">
-          <h2 className="text-xl font-semibold mb-4">{lang === 'tr' ? 'Görseller' : 'Images'}</h2>
+          <h2 className="text-xl font-semibold mb-4">{lang === 'tr' ? 'Sayfa Görseli' : 'Page Image'}</h2>
+          <p className="text-gray-600 mb-4">{lang === 'tr' ? 'Yüklenen görsel hem hero alanında hem de hakkımızda sayfasında kullanılacaktır.' : 'The uploaded image will be used both in the hero area and on the about page.'}</p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Hero Image */}
-            <div className="space-y-3">
-              <h3 className="font-medium">{lang === 'tr' ? 'Hero Görseli' : 'Hero Image'}</h3>
-              
-              <div className="bg-gray-100 h-40 rounded-md overflow-hidden relative">
-                {aboutData?.heroImage && (
-                  <img 
-                    src={aboutData.heroImage} 
-                    alt="Hero Görsel" 
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-              
-              <div className="flex">
-                <input 
-                  type="file" 
-                  ref={heroImageRef}
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={() => {}} 
+          <div className="space-y-4">
+            <div className="bg-gray-100 h-60 rounded-md overflow-hidden relative">
+              {imageUrl && (
+                <img 
+                  src={imageUrl} 
+                  alt="Sayfa Görseli" 
+                  className="w-full h-full object-cover"
                 />
-                <button
-                  type="button"
-                  onClick={() => heroImageRef.current?.click()}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mr-2 flex-grow"
-                >
-                  <FaUpload className="inline-block mr-2" />
-                  {lang === 'tr' ? 'Görsel Seç' : 'Select Image'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleImageUpload('heroImage')}
-                  disabled={saving}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
-                >
-                  {saving ? <FaSpinner className="inline-block animate-spin" /> : 'Yükle'}
-                </button>
-              </div>
+              )}
+              {!imageUrl && (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  {lang === 'tr' ? 'Görsel yüklenmedi' : 'No image uploaded'}
+                </div>
+              )}
             </div>
             
-            {/* Main Image */}
-            <div className="space-y-3">
-              <h3 className="font-medium">{lang === 'tr' ? 'Ana Görsel' : 'Main Image'}</h3>
-              
-              <div className="bg-gray-100 h-40 rounded-md overflow-hidden relative">
-                {aboutData?.mainImage && (
-                  <img 
-                    src={aboutData.mainImage} 
-                    alt="Ana Görsel" 
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-              
-              <div className="flex">
-                <input 
-                  type="file" 
-                  ref={mainImageRef}
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={() => {}} 
-                />
-                <button
-                  type="button"
-                  onClick={() => mainImageRef.current?.click()}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mr-2 flex-grow"
-                >
-                  <FaUpload className="inline-block mr-2" />
-                  {lang === 'tr' ? 'Görsel Seç' : 'Select Image'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleImageUpload('mainImage')}
-                  disabled={saving}
-                  className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
-                >
-                  {saving ? <FaSpinner className="inline-block animate-spin" /> : 'Yükle'}
-                </button>
-              </div>
+            <div className="flex">
+              <input 
+                type="file" 
+                ref={imageInputRef}
+                className="hidden" 
+                accept="image/*" 
+                onChange={() => {}} 
+              />
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mr-2 flex-grow"
+              >
+                <FaUpload className="inline-block mr-2" />
+                {lang === 'tr' ? 'Görsel Seç' : 'Select Image'}
+              </button>
+              <button
+                type="button"
+                onClick={handleImageUpload}
+                disabled={saving}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
+              >
+                {saving ? <FaSpinner className="inline-block animate-spin" /> : 'Yükle'}
+              </button>
             </div>
           </div>
         </div>

@@ -1,65 +1,55 @@
-import { useEffect, useState } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-// Socket bağlantısı için hook
 export default function useSocketNotifications() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [needsRefresh, setNeedsRefresh] = useState(false);
-  
-  // Socket bağlantısı kurma
+
   useEffect(() => {
-    // Geliştirme veya üretim moduna göre socket URL'si
-    const socketUrl = process.env.NODE_ENV === 'production' 
-      ? window.location.origin 
-      : 'http://localhost:3001';
-      
-    console.log('Socket.io bağlantısı kuruluyor:', socketUrl);
-    
-    // Socket bağlantısını kur
-    const socketConnection = io(socketUrl, {
+    // WebSocket bağlantısını kur
+    const socketConnection = io('http://localhost:3001', {
       transports: ['websocket'],
-      withCredentials: true
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
-    
-    // Bağlantı olaylarını dinle
+
+    // Bağlantı durumu
     socketConnection.on('connect', () => {
-      console.log('Socket.io bağlantısı kuruldu:', socketConnection.id);
+      console.log('WebSocket bağlantısı kuruldu:', socketConnection.id);
     });
-    
-    socketConnection.on('connect_error', (err) => {
-      console.error('Socket.io bağlantı hatası:', err.message);
+
+    socketConnection.on('connect_error', (error) => {
+      console.warn('WebSocket bağlantı hatası:', error.message);
     });
-    
-    // Oda güncellemelerini dinle
+
+    // Odalar güncellendiğinde
     socketConnection.on('rooms-updated', (data) => {
-      console.log('Odalar güncellendi:', data);
+      console.log('Odalar güncellendi bildirimi alındı:', data);
       setNeedsRefresh(true);
     });
-    
+
+    // Belirli bir oda güncellendiğinde
     socketConnection.on('room-updated', (data) => {
-      console.log('Oda güncellendi:', data.roomId);
+      console.log('Oda güncellendi bildirimi alındı:', data);
       setNeedsRefresh(true);
     });
-    
-    socketConnection.on('gallery-updated', (data) => {
-      console.log('Galeri güncellendi:', data.roomId);
-      setNeedsRefresh(true);
-    });
-    
-    // Socket bağlantısını state'e kaydet
+
+    // Bileşen unmount olduğunda bağlantıyı kapat
     setSocket(socketConnection);
     
-    // Temizleme fonksiyonu
     return () => {
-      console.log('Socket.io bağlantısı kapatılıyor...');
+      console.log('WebSocket bağlantısı kapatılıyor...');
       socketConnection.disconnect();
     };
   }, []);
-  
-  // Yenileme durumunu sıfırla
+
+  // Yenileme bayrağını sıfırla
   const resetRefreshFlag = () => {
     setNeedsRefresh(false);
   };
-  
-  return { socket, needsRefresh, resetRefreshFlag };
+
+  return { needsRefresh, resetRefreshFlag, socket };
 } 

@@ -22,8 +22,12 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
 }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [previewUrl, setPreviewUrl] = useState(existingMedia);
-  const [mediaType, setMediaType] = useState<'image' | 'video'>(existingMedia.includes('/videos/') ? 'video' : 'image');
+  const [previewUrl, setPreviewUrl] = useState(existingMedia || '');
+  const [mediaType, setMediaType] = useState<'image' | 'video'>(
+    existingMedia && typeof existingMedia === 'string' && existingMedia.includes('/videos/') 
+      ? 'video' 
+      : 'image'
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,23 +72,53 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
+      formData.append('type', isImage ? 'image' : 'video');
 
-      const response = await fetch('/api/upload', {
+      // Folder'a göre doğru API endpoint'i seç
+      let apiEndpoint = '/api/upload';
+      
+      if (folder === 'slider') {
+        apiEndpoint = '/api/admin/slider/upload';
+      }
+      
+      console.log(`Medya yükleniyor: ${file.name}, boyut: ${file.size}, tür: ${file.type}, API: ${apiEndpoint}, folder: ${folder}`);
+
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         body: formData
       });
 
       const data = await response.json();
-
+      
       if (!response.ok) {
-        throw new Error(data.error || 'Yükleme sırasında bir hata oluştu');
+        console.error('API yanıt hatası:', response.status, data);
+        throw new Error(data.message || data.error || `Yükleme hatası (${response.status}): Sunucu beklenen yanıtı döndürmedi`);
       }
 
+      console.log('Yükleme yanıtı:', data);
+
       // Başarıyla yüklendi, URL'i parent bileşene bildir
-      onMediaUploaded(data.fileUrl, data.fileType);
-    } catch (error) {
+      if (data.success && data.fileUrl) {
+        console.log('Yükleme başarılı:', data.fileUrl);
+        onMediaUploaded(data.fileUrl, data.fileType || (isImage ? 'image' : 'video'));
+      } else {
+        console.error('Dosya URL eksik:', data);
+        throw new Error('Yükleme yanıtında dosya URL\'i bulunamadı');
+      }
+    } catch (error: any) {
       console.error('Yükleme hatası:', error);
-      setError(error instanceof Error ? error.message : 'Yükleme işlemi başarısız oldu');
+      
+      // Hata mesajı detaylı oluşturma
+      let errorMessage = 'Yükleme işlemi başarısız oldu';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = error.message as string;
+      }
+      
+      setError(errorMessage);
       
       // Hata durumunda önizlemeyi kaldır
       if (previewUrl && !existingMedia) {
@@ -109,6 +143,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
     }
     
     setPreviewUrl('');
+    setError(''); // Hata mesajını da temizle
     onMediaUploaded('', ''); // URL'i sıfırla
   };
 
@@ -131,6 +166,12 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       {error && (
         <div className="bg-red-50 text-red-600 p-3 mb-3 rounded-md text-sm">
           {error}
+          <button 
+            className="ml-2 text-xs underline hover:text-red-800"
+            onClick={() => setError('')}
+          >
+            Kapat
+          </button>
         </div>
       )}
 

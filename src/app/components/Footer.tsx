@@ -61,12 +61,12 @@ export default function Footer({ lang: propLang }: FooterProps) {
           {/* Logo ve Açıklama */}
           <div>
             <div className="flex items-center mb-4 justify-center md:justify-start">
-              <div className="w-28 h-28 bg-white rounded-lg flex items-center justify-center p-2 shadow-md">
+              <div className="w-36 h-36 bg-white rounded-lg flex items-center justify-center p-2 shadow-md">
                 <Image 
                   src="/images/logo/dogahotellogo.jpg" 
                   alt="Doğa Hotel Logo" 
-                  width={100} 
-                  height={100}
+                  width={130} 
+                  height={130}
                   className="object-contain" 
                   priority
                 />

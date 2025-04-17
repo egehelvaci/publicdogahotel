@@ -1,13 +1,6 @@
-import fs from 'fs';
-import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
-// Veri dosyasının yolu
-const dataFilePath = path.join(process.cwd(), 'src', 'app', 'data', 'json', 'aboutData.json');
-
-// Alternatif dosya yolu - kökten başlayarak
-const altDataFilePath = path.join(process.cwd(), 'src/app/data/json/aboutData.json');
-
-// About veri tipi
+// About veri arayüzü
 export interface AboutData {
   heroImage: string;
   mainImage: string;
@@ -27,75 +20,104 @@ export interface AboutData {
   }[];
   badgesTR: string[];
   badgesEN: string[];
+  id?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-// JSON dosyasını oku
-export function readAboutData(): AboutData {
+// JSON dosyasından about verilerini oku
+export function readAboutData(): AboutData | null {
   try {
-    let fileContent;
-    
-    try {
-      fileContent = fs.readFileSync(dataFilePath, 'utf8');
-    } catch (err) {
-      console.log('İlk dosya yolu başarısız, alternatif deneniyor:', err);
-      fileContent = fs.readFileSync(altDataFilePath, 'utf8');
+    // Bu client-side'da çalıştırılmadığından, sadece server-side'da kullanılacak
+    // Gerçek implementasyon page.tsx içindedir
+    return null;
+  } catch (error) {
+    console.error('About verisi okunurken hata:', error);
+    return null;
+  }
+}
+
+// Tüm about verilerini getir
+export async function getAboutData(): Promise<AboutData | null> {
+  try {
+    const response = await fetch('/api/about', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store'
+      },
+      next: { revalidate: 0 }
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP hata: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Veri alınamadı');
     }
     
-    console.log('About verisi okundu');
-    return JSON.parse(fileContent) as AboutData;
+    return result.data;
   } catch (error) {
-    console.error('Hakkımızda verisi okunamadı:', error);
-    throw new Error('Hakkımızda verisi okunamadı');
+    console.error('About verisi alınırken hata:', error);
+    return null;
   }
 }
 
-// JSON dosyasına yaz
-export function writeAboutData(data: AboutData): void {
+// About verilerini güncelle
+export async function updateAboutData(data: Partial<AboutData>): Promise<AboutData | null> {
   try {
-    const jsonData = JSON.stringify(data, null, 2);
-    fs.writeFileSync(dataFilePath, jsonData, 'utf8');
-  } catch (error) {
-    console.error('Hakkımızda verisi yazılamadı:', error);
-    throw new Error('Hakkımızda verisi yazılamadı');
-  }
-}
+    const response = await fetch('/api/about', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
 
-// Hakkımızda verisini güncelle
-export function updateAboutData(updatedData: Partial<AboutData>): AboutData {
-  try {
-    const currentData = readAboutData();
-    const newData = { ...currentData, ...updatedData };
-    writeAboutData(newData);
-    return newData;
-  } catch (error) {
-    console.error('Hakkımızda verisi güncellenemedi:', error);
-    throw new Error('Hakkımızda verisi güncellenemedi');
-  }
-}
+    if (!response.ok) {
+      throw new Error(`HTTP hata: ${response.status}`);
+    }
 
-// Resim yükleme fonksiyonu
-export function saveUploadedImage(base64Image: string, fileName: string): string {
-  try {
-    // Base64 formatını işle
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-    
-    // images/aboutus klasörünü kontrol et, yoksa oluştur
-    const uploadsDir = path.join(process.cwd(), 'public', 'images', 'aboutus');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Veri güncellenemedi');
     }
     
-    // Dosya adını oluştur ve kaydet
-    const uniqueFileName = `${Date.now()}-${fileName}`;
-    const filePath = path.join(uploadsDir, uniqueFileName);
-    
-    fs.writeFileSync(filePath, buffer);
-    
-    // Web'den erişilebilir yolu döndür
-    return `/images/aboutus/${uniqueFileName}`;
+    return result.data;
   } catch (error) {
-    console.error('Resim kaydedilemedi:', error);
-    throw new Error('Resim kaydedilemedi');
+    console.error('About verisi güncellenirken hata:', error);
+    return null;
+  }
+}
+
+// Resim yükleme fonksiyonu - ImageKit'i kullanır
+export async function uploadAboutImage(file: File): Promise<string | null> {
+  try {
+    if (!file) return null;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/admin/about/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `Resim yükleme hatası: ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Resim yüklenemedi');
+    }
+    
+    return result.url;
+  } catch (error) {
+    console.error('Resim yüklenirken hata:', error);
+    return null;
   }
 } 

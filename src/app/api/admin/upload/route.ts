@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import { uploadToImageKit } from '@/lib/imagekitServer';
+
+// Yüklenebilecek maksimum dosya boyutu (10MB)
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+// İzin verilen dosya tipleri
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif'];
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,49 +16,55 @@ export async function POST(request: NextRequest) {
     // Dosya kontrolü
     if (!file) {
       return NextResponse.json(
-        { error: 'Dosya yüklenemedi' },
+        { error: 'Dosya bulunamadı' },
         { status: 400 }
       );
     }
 
-    // Buffer olarak dosya içeriğini al
+    // Dosya tipi kontrolü
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Geçersiz dosya formatı. Sadece JPEG, PNG, WebP, JPG ve GIF formatları desteklenir.' },
+        { status: 400 }
+      );
+    }
+
+    // Dosya boyutu kontrolü
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json(
+        { error: 'Dosya boyutu 10MB\'ı geçemez' },
+        { status: 400 }
+      );
+    }
+    
+    // Dosya içeriğini al
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    // Güvenli dosya adı oluştur
+    
+    // Dosya adını oluştur
     const originalName = file.name;
-    const fileExtension = originalName.split('.').pop()?.toLowerCase();
-    const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
-    // Dosya uzantısını kontrol et
-    if (!fileExtension || !allowedExtensions.includes(fileExtension)) {
+    
+    // ImageKit klasörünü belirle
+    const imageKitFolder = `dogahotel/${folder}`;
+    
+    // ImageKit'e yükle
+    const result = await uploadToImageKit(buffer, originalName, imageKitFolder);
+    
+    if (!result.success) {
       return NextResponse.json(
-        { error: 'Geçersiz dosya formatı. Sadece jpg, jpeg, png, gif ve webp formatları desteklenir.' },
-        { status: 400 }
+        { error: result.error || 'Dosya yüklenirken bir hata oluştu' },
+        { status: 500 }
       );
     }
-
-    // Benzersiz dosya adı oluşturma
-    const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-    
-    // Klasör yolunu belirle
-    const uploadDir = join(process.cwd(), 'public', 'images', folder);
-    
-    // Klasör yoksa oluştur
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-    
-    // Dosya yolunu oluştur
-    const filePath = join(uploadDir, uniqueFileName);
-    
-    // Dosyayı kaydet
-    await writeFile(filePath, buffer);
     
     // Başarılı yanıt döndür
     return NextResponse.json({
       success: true,
-      filePath: `/images/${folder}/${uniqueFileName}`
+      filePath: result.url,
+      url: result.url,
+      fileId: result.fileId,
+      fileName: originalName,
+      fileType: result.fileType
     });
   } catch (error) {
     console.error('Dosya yükleme hatası:', error);

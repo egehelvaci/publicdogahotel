@@ -19,14 +19,9 @@ import {
 } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import HeroSlider from '../components/HeroSlider';
-import StatsChart from '../components/StatsChart';
 import ScrollAnimationWrapper from '../components/ScrollAnimationWrapper';
 import { AnimatedCounter, AnimatedText } from '../../components/micro-interactions/MicroInteractions';
 import { getRoomsForLanguage } from '../data/rooms';
-import CountUp from 'react-countup';
-import Typewriter from 'typewriter-effect';
-import useWindowSize from '../hooks/useWindowSize';
-import { Carousel } from 'react-responsive-carousel';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
 
 type HomePageProps = {
@@ -251,6 +246,7 @@ export default function HomePage({ lang }: HomePageProps) {
               name: language === 'tr' ? room.nameTR : room.nameEN,
               description: language === 'tr' ? room.descriptionTR : room.descriptionEN,
               image: room.image,
+              mainImageUrl: room.mainImageUrl || room.image,
               price: language === 'tr' ? room.priceTR : room.priceEN,
               capacity: room.capacity,
               size: room.size,
@@ -505,7 +501,7 @@ export default function HomePage({ lang }: HomePageProps) {
                         <div className="grid grid-cols-1 md:grid-cols-2">
                           <div className="relative h-[300px] md:h-[500px]">
                             <Image 
-                              src={room.image}
+                              src={room.mainImageUrl || room.image}
                               alt={room.name}
                               fill
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -527,51 +523,6 @@ export default function HomePage({ lang }: HomePageProps) {
                                   </li>
                                 ))}
                               </ul>
-                            </div>
-                            
-                            <div className="text-center mt-4">
-                              <Link 
-                                href={`/${language}/rooms/${loadedRooms[currentRoomIndex]?.id}`}
-                                className="inline-flex items-center bg-amber-600 hover:bg-amber-700 text-white py-3 px-8 rounded-md transition-colors duration-300 shadow-md hover:shadow-lg relative z-20 group"
-                                onClick={(e) => {
-                                  const room = loadedRooms[currentRoomIndex];
-                                  // Oda kimliğini doğrula ve logla
-                                  console.log(`Slider: ${room.name} odası için detaylar butonuna tıklandı, id: ${room.id}`);
-                                  
-                                  // Doğru oda ID'lerini kontrol et
-                                  const validRoomIds = ['standard-room', 'triple-room', 'suite-room', 'apart-room'];
-                                  
-                                  // Eğer oda ID'si geçersizse, doğru odaya yönlendir
-                                  if (!validRoomIds.includes(room.id)) {
-                                    e.preventDefault(); // Yönlendirmeyi engelle
-                                    console.error(`Slider: Hatalı oda kimliği: ${room.id}, doğru kimlik kullanılacak`);
-                                    
-                                    // Oda adına göre doğru ID'yi belirle
-                                    let correctId = 'standard-room'; // Varsayılan
-                                    
-                                    if (room.name.toLowerCase().includes('standart') || 
-                                        room.name.toLowerCase().includes('standard')) {
-                                      correctId = 'standard-room';
-                                    } else if (room.name.toLowerCase().includes('triple') || 
-                                              room.name.toLowerCase().includes('üçlü')) {
-                                      correctId = 'triple-room';
-                                    } else if (room.name.toLowerCase().includes('suite') || 
-                                              room.name.toLowerCase().includes('süit')) {
-                                      correctId = 'suite-room';
-                                    } else if (room.name.toLowerCase().includes('apart')) {
-                                      correctId = 'apart-room';
-                                    }
-                                    
-                                    console.log(`Slider: Doğru oda kimliğine yönlendiriliyor: ${correctId}`);
-                                    window.location.href = `/${language}/rooms/${correctId}`;
-                                  }
-                                }}
-                              >
-                                <span className="flex items-center">
-                                  {language === 'tr' ? 'Detaylar' : 'Details'} 
-                                  <FaArrowRight className="ml-2 transform group-hover:translate-x-1 transition-transform duration-300" />
-                                </span>
-                              </Link>
                             </div>
                           </div>
                         </div>

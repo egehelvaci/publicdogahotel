@@ -1,180 +1,420 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { notifyRoomsUpdated, notifyRoomUpdated } from '../../websocket/route';
-import { RoomItem } from '../route'; // Import RoomItem from the main route file
+import { executeQuery } from '@/lib/db';
+import { notifyRoomsUpdated } from '../../websocket/route';
+import { randomUUID } from 'crypto';
 
-// Dosya yolu
-const roomsFilePath = path.join(process.cwd(), 'src/app/data/json/admin/roomsData.json');
+// Tüm API isteklerini dinamik olarak yap
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-// JSON dosyasını okuma yardımcı fonksiyonu (Return type added)
-const readRoomsData = (): RoomItem[] => {
-  try {
-    const fileData = fs.readFileSync(roomsFilePath, 'utf8');
-    // Cast the parsed data to RoomItem[]
-    return JSON.parse(fileData) as RoomItem[];
-  } catch (error) {
-    console.error('Oda verisi okuma hatası:', error);
-    return [];
-  }
-};
-
-// JSON dosyasına yazma yardımcı fonksiyonu (Use RoomItem type)
-const writeRoomsData = (data: RoomItem[], roomId?: string) => {
-  try {
-    const jsonData = JSON.stringify(data, null, 2);
-    fs.writeFileSync(roomsFilePath, jsonData, 'utf8');
-    
-    // WebSocket bildirimi gönder
-    notifyRoomsUpdated();
-    
-    // Belirli bir oda için bildirim
-    if (roomId) {
-      notifyRoomUpdated(roomId);
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Oda verisi yazma hatası:', error);
-    return false;
-  }
-};
-
-// GET - ID'ye göre oda getir
+// GET - Belirli bir odayı ID'ye göre getir
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
     const id = params.id;
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in find callback
-    const room = rooms.find((room: RoomItem) => room.id === id);
-
-    if (!room) {
+    
+    const query = `
+      SELECT 
+        r.id, 
+        r.name_tr as "nameTR", 
+        r.name_en as "nameEN", 
+        r.description_tr as "descriptionTR", 
+        r.description_en as "descriptionEN", 
+        r.main_image_url as image, 
+        r.main_image_url as "mainImageUrl",
+        r.price_tr as "priceTR", 
+        r.price_en as "priceEN", 
+        r.capacity, 
+        r.size, 
+        r.features_tr as "featuresTR", 
+        r.features_en as "featuresEN", 
+        r.type, 
+        r.room_type_id as "roomTypeId",
+        r.active, 
+        r.order_number as "orderNumber",
+        r.order_number as order,
+        COALESCE(
+          (SELECT json_agg(image_url ORDER BY order_number ASC)
+           FROM room_gallery
+           WHERE room_id = r.id), 
+          '[]'::json
+        ) as gallery
+      FROM rooms r
+      WHERE r.id = $1
+    `;
+    
+    console.log('Oda verisi çekiliyor, ID:', id);
+    const result = await executeQuery(query, [id]);
+    
+    if (result.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Surrogate-Control': 'no-store'
+          }
+        }
       );
     }
     
-    return NextResponse.json({ success: true, data: room });
+    // SQL'den dönen sonuçları doğru formata çevir
+    const room = result.rows[0];
+    
+    // features_tr ve features_en alanlarının dizi olduğundan emin ol
+    // PostgreSQL'den gelen diziler {} formatında olabilir
+    if (room.featuresTR && !Array.isArray(room.featuresTR)) {
+      console.log('featuresTR diziye dönüştürülüyor:', room.featuresTR);
+      try {
+        if (typeof room.featuresTR === 'string') {
+          // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
+          room.featuresTR = room.featuresTR.replace(/^\{|\}$/g, '').split(',');
+        }
+      } catch (error) {
+        console.error('featuresTR dönüştürme hatası:', error);
+        room.featuresTR = [];
+      }
+    }
+    
+    if (room.featuresEN && !Array.isArray(room.featuresEN)) {
+      console.log('featuresEN diziye dönüştürülüyor:', room.featuresEN);
+      try {
+        if (typeof room.featuresEN === 'string') {
+          // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
+          room.featuresEN = room.featuresEN.replace(/^\{|\}$/g, '').split(',');
+        }
+      } catch (error) {
+        console.error('featuresEN dönüştürme hatası:', error);
+        room.featuresEN = [];
+      }
+    }
+    
+    console.log('İşlenmiş oda verisi:', {
+      ...room,
+      featuresTR: room.featuresTR,
+      featuresEN: room.featuresEN
+    });
+    
+    // API yanıtı için önbellekleme önleyici başlıklar ekle
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'Surrogate-Control': 'no-store'
+    });
+    
+    return NextResponse.json(
+      { success: true, data: room },
+      { headers }
+    );
   } catch (error) {
     console.error('Oda verisi çekme hatası:', error);
     return NextResponse.json(
       { success: false, message: 'Oda verisi alınamadı' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'Surrogate-Control': 'no-store'
+        }
+      }
     );
   }
 }
 
-// PUT - ID'ye göre odayı güncelle
+// PUT - Odayı güncelle
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
     const id = params.id;
     const body = await request.json();
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-
-    // Add type for room in findIndex callback
-    const roomIndex = rooms.findIndex((room: RoomItem) => room.id === id);
-
-    if (roomIndex === -1) {
+    
+    console.log('API PUT - Gelen veri:', JSON.stringify(body, null, 2));
+    
+    // Odanın var olup olmadığını kontrol et
+    const checkQuery = `
+      SELECT * FROM rooms 
+      WHERE id = $1
+    `;
+    
+    const checkResult = await executeQuery(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Oda bulunamadı' },
+        { success: false, message: 'Güncellenecek oda bulunamadı' },
         { status: 404 }
       );
     }
     
-    // Mevcut odayı al
-    const existingRoom: RoomItem = rooms[roomIndex]; // Add type annotation
-
-    // Güncelleme (Use RoomItem type)
-    const updatedRoom: RoomItem = {
-      ...existingRoom,
-      ...body,
-      id: id // ID değiştirilmesin
-    };
+    // Transaction başlat
+    const client = await (await executeQuery('BEGIN')).client;
     
-    // Galeri yönetimi
-    if (body.image && !updatedRoom.gallery.includes(body.image)) {
-      // Ana görsel galeriye eklenmediyse ekle
-      updatedRoom.gallery = [body.image, ...updatedRoom.gallery];
-    }
-    
-    // Odayı güncelle
-    rooms[roomIndex] = updatedRoom;
-    
-    // Verileri kaydet
-    const success = writeRoomsData(rooms, id);
-    
-    if (success) {
+    try {
+      // Güncellenecek alanları belirle
+      const updateFields = [];
+      const updateValues = [];
+      let paramCounter = 1;
+      
+      if (body.nameTR !== undefined) {
+        updateFields.push(`name_tr = $${paramCounter++}`);
+        updateValues.push(body.nameTR);
+      }
+      
+      if (body.nameEN !== undefined) {
+        updateFields.push(`name_en = $${paramCounter++}`);
+        updateValues.push(body.nameEN);
+      }
+      
+      if (body.descriptionTR !== undefined) {
+        updateFields.push(`description_tr = $${paramCounter++}`);
+        updateValues.push(body.descriptionTR);
+      }
+      
+      if (body.descriptionEN !== undefined) {
+        updateFields.push(`description_en = $${paramCounter++}`);
+        updateValues.push(body.descriptionEN);
+      }
+      
+      // Görsel alanı kontrolü - hem image hem mainImageUrl destekle
+      if (body.image !== undefined) {
+        updateFields.push(`main_image_url = $${paramCounter++}`);
+        updateValues.push(body.image);
+      } else if (body.mainImageUrl !== undefined) {
+        updateFields.push(`main_image_url = $${paramCounter++}`);
+        updateValues.push(body.mainImageUrl);
+      }
+      
+      if (body.priceTR !== undefined) {
+        updateFields.push(`price_tr = $${paramCounter++}`);
+        updateValues.push(body.priceTR);
+      }
+      
+      if (body.priceEN !== undefined) {
+        updateFields.push(`price_en = $${paramCounter++}`);
+        updateValues.push(body.priceEN);
+      }
+      
+      if (body.capacity !== undefined) {
+        updateFields.push(`capacity = $${paramCounter++}`);
+        updateValues.push(body.capacity);
+      }
+      
+      if (body.size !== undefined) {
+        updateFields.push(`size = $${paramCounter++}`);
+        updateValues.push(body.size);
+      }
+      
+      if (body.featuresTR !== undefined) {
+        updateFields.push(`features_tr = $${paramCounter++}`);
+        // Doğrudan dizi olarak gönder - node-postgres bu diziyi text[] olarak işleyecek
+        updateValues.push(body.featuresTR);
+      }
+      
+      if (body.featuresEN !== undefined) {
+        updateFields.push(`features_en = $${paramCounter++}`);
+        // Doğrudan dizi olarak gönder - node-postgres bu diziyi text[] olarak işleyecek 
+        updateValues.push(body.featuresEN);
+      }
+      
+      if (body.type !== undefined) {
+        updateFields.push(`type = $${paramCounter++}`);
+        updateValues.push(body.type);
+      }
+      
+      if (body.roomTypeId !== undefined) {
+        updateFields.push(`room_type_id = $${paramCounter++}`);
+        updateValues.push(body.roomTypeId);
+      }
+      
+      if (body.active !== undefined) {
+        updateFields.push(`active = $${paramCounter++}`);
+        updateValues.push(body.active);
+      }
+      
+      // Sıra numarası kontrolü - hem order hem orderNumber destekle
+      if (body.order !== undefined) {
+        updateFields.push(`order_number = $${paramCounter++}`);
+        updateValues.push(body.order);
+      } else if (body.orderNumber !== undefined) {
+        updateFields.push(`order_number = $${paramCounter++}`);
+        updateValues.push(body.orderNumber);
+      }
+      
+      console.log('Güncellenecek alanlar:', updateFields);
+      console.log('Güncellenecek değerler:', updateValues);
+      
+      // En az bir alan güncellenmeli
+      if (updateFields.length > 0) {
+        updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+        
+        // ID'yi en son parametre olarak ekle
+        updateValues.push(id);
+        
+        const updateQuery = `
+          UPDATE rooms
+          SET ${updateFields.join(', ')}
+          WHERE id = $${paramCounter}
+          RETURNING *
+        `;
+        
+        console.log('SQL Sorgusu:', updateQuery);
+        
+        const updateResult = await client.query(updateQuery, updateValues);
+        console.log('Güncelleme sonucu:', updateResult.rows[0]);
+      }
+      
+      // Galeri görsellerini güncelle (eğer gönderilmişse)
+      if (Array.isArray(body.gallery)) {
+        // Mevcut galeri öğelerini sil
+        await client.query('DELETE FROM room_gallery WHERE room_id = $1', [id]);
+        
+        // Yeni galeri öğelerini ekle
+        for (let i = 0; i < body.gallery.length; i++) {
+          // UUID oluştur - NOT NULL constraint için
+          const galleryItemId = randomUUID();
+          
+          const galleryQuery = `
+            INSERT INTO room_gallery (id, room_id, image_url, order_number)
+            VALUES ($1, $2, $3, $4)
+          `;
+          
+          await client.query(galleryQuery, [galleryItemId, id, body.gallery[i], i + 1]);
+        }
+      }
+      
+      // Transaction'ı tamamla
+      await client.query('COMMIT');
+      
+      // WebSocket bildirimi gönder
+      notifyRoomsUpdated();
+      
+      // Güncellenmiş odayı getir
+      const getQuery = `
+        SELECT 
+          r.id, 
+          r.name_tr as "nameTR", 
+          r.name_en as "nameEN", 
+          r.description_tr as "descriptionTR", 
+          r.description_en as "descriptionEN", 
+          r.main_image_url as image, 
+          r.price_tr as "priceTR", 
+          r.price_en as "priceEN", 
+          r.capacity, 
+          r.size, 
+          r.features_tr as "featuresTR", 
+          r.features_en as "featuresEN", 
+          r.type, 
+          r.room_type_id as "roomTypeId",
+          r.active, 
+          r.order_number as order,
+          COALESCE(
+            (SELECT json_agg(image_url ORDER BY order_number ASC)
+             FROM room_gallery
+             WHERE room_id = r.id), 
+            '[]'::json
+          ) as gallery
+        FROM rooms r
+        WHERE r.id = $1
+      `;
+      
+      const finalResult = await executeQuery(getQuery, [id]);
+      
       return NextResponse.json({
         success: true,
-        data: updatedRoom,
+        data: finalResult.rows[0],
         message: 'Oda başarıyla güncellendi'
       });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Oda güncellenirken bir hata oluştu' },
-        { status: 500 }
-      );
+    } catch (error) {
+      // Hata durumunda geri al
+      await client.query('ROLLBACK');
+      console.error('SQL Hatası:', error);
+      throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Oda güncelleme hatası:', error);
     return NextResponse.json(
-      { success: false, message: 'Oda güncellenirken bir hata oluştu' },
+      { success: false, message: `Oda güncellenirken bir hata oluştu: ${error.message}` },
       { status: 500 }
     );
   }
 }
 
-// DELETE - ID'ye göre odayı sil
+// DELETE - Odayı sil
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
     const id = params.id;
-    const rooms: RoomItem[] = readRoomsData(); // Add type annotation
-    // Add type for room in findIndex callback
-    const roomIndex = rooms.findIndex((room: RoomItem) => room.id === id);
-
-    if (roomIndex === -1) {
+    
+    // Transaction başlat
+    const client = await (await executeQuery('BEGIN')).client;
+    
+    try {
+      // Odanın var olup olmadığını kontrol et
+      const checkQuery = `
+        SELECT * FROM rooms 
+        WHERE id = $1
+      `;
+      
+      const checkResult = await client.query(checkQuery, [id]);
+      
+      if (checkResult.rows.length === 0) {
+        await client.query('ROLLBACK');
       return NextResponse.json(
-        { success: false, message: 'Oda bulunamadı' },
+          { success: false, message: 'Silinecek oda bulunamadı' },
         { status: 404 }
       );
     }
+      
+      // Önce odaya ait galeri öğelerini sil
+      await client.query('DELETE FROM room_gallery WHERE room_id = $1', [id]);
     
     // Odayı sil
-    const deletedRoom = rooms.splice(roomIndex, 1)[0];
-
-    // Kalan odaların sırasını güncelle (Add type for room)
-    const updatedRooms = rooms.map((room: RoomItem, index: number) => ({
-      ...room,
-      order: index + 1 // Note: Order starts from 1? Check consistency.
-    }));
-
-    // Verileri kaydet
-    const success = writeRoomsData(updatedRooms);
-    
-    if (success) {
+      await client.query('DELETE FROM rooms WHERE id = $1', [id]);
+      
+      // Sıra numaralarını güncelle
+      const reorderQuery = `
+        WITH ranked AS (
+          SELECT id, ROW_NUMBER() OVER (ORDER BY order_number) as new_order
+          FROM rooms
+        )
+        UPDATE rooms
+        SET order_number = ranked.new_order,
+            updated_at = CURRENT_TIMESTAMP
+        FROM ranked
+        WHERE rooms.id = ranked.id
+      `;
+      
+      await client.query(reorderQuery);
+      
+      // Transaction'ı tamamla
+      await client.query('COMMIT');
+      
+      // WebSocket bildirimi gönder
+      notifyRoomsUpdated();
+      
       return NextResponse.json({
         success: true,
-        data: deletedRoom,
         message: 'Oda başarıyla silindi'
       });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Oda silinirken bir hata oluştu' },
-        { status: 500 }
-      );
+    } catch (error) {
+      // Hata durumunda geri al
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
     }
   } catch (error) {
     console.error('Oda silme hatası:', error);

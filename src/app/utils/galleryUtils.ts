@@ -2,6 +2,9 @@
  * Galeri görsellerini yüklemek için yardımcı fonksiyonlar
  */
 
+// API URL - düzeltildi
+const GALLERY_API_URL = '/api/gallery';
+
 // Kategori yapılandırması
 export const galleryCategories = [
   { id: 'all', nameTR: 'Tümü', nameEN: 'All' },
@@ -10,7 +13,19 @@ export const galleryCategories = [
   { id: 'reception', nameTR: 'Resepsiyon', nameEN: 'Reception' },
 ];
 
-// Sabit görsel listesi - client tarafında kullanılmak üzere
+// Galeri öğesi arayüzü
+export interface GalleryItem {
+  id: string;
+  image: string;
+  videoUrl?: string;
+  title?: string;
+  description?: string;
+  order: number;
+  type: 'image' | 'video';
+  category?: string;
+}
+
+// Sabit görsel listesi - yedek olarak
 export const staticGalleryImages = [
   // Bahçe görseleri
   { path: '/images/gallery/garden.jpg', category: 'garden' },
@@ -20,33 +35,116 @@ export const staticGalleryImages = [
   { path: '/images/gallery/garden7.jpg', category: 'garden' },
   { path: '/images/gallery/garden9.jpg', category: 'garden' },
   { path: '/images/gallery/garden10.jpg', category: 'garden' },
-  { path: '/images/gallery/garden11.jpg', category: 'garden' },
-  { path: '/images/gallery/garden12.jpg', category: 'garden' },
-  { path: '/images/gallery/garden13.jpg', category: 'garden' },
-  { path: '/images/gallery/garden15.jpg', category: 'garden' },
-  { path: '/images/gallery/garden18.jpg', category: 'garden' },
-  { path: '/images/gallery/garden20.jpg', category: 'garden' },
-  { path: '/images/gallery/garden21.jpg', category: 'garden' },
-  
   // Havuz görseleri
   { path: '/images/gallery/pool.jpg', category: 'pool' },
   { path: '/images/gallery/pool2.jpg', category: 'pool' },
   { path: '/images/gallery/pool3.jpg', category: 'pool' },
-  { path: '/images/gallery/pool4.jpg', category: 'pool' },
-  { path: '/images/gallery/pool5.jpg', category: 'pool' },
-  { path: '/images/gallery/pool6.jpg', category: 'pool' },
-  { path: '/images/gallery/pool7.jpg', category: 'pool' },
-  { path: '/images/gallery/pool8.jpg', category: 'pool' },
-  { path: '/images/gallery/pool9.jpg', category: 'pool' },
-  
   // Resepsiyon görseleri
   { path: '/images/gallery/resepsiyon.jpg', category: 'reception' },
 ];
 
-// Define interface for the static image structure
-interface StaticGalleryImage {
-  path: string;
-  category: string;
+/**
+ * API'den galeri öğelerini getir
+ */
+export async function fetchGalleryItems(): Promise<GalleryItem[]> {
+  try {
+    console.log('Galeri öğeleri API\'den alınıyor...');
+    const timestamp = new Date().getTime(); // Önbellek sorunlarını önlemek için
+    
+    const response = await fetch(`${GALLERY_API_URL}?t=${timestamp}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      console.error(`API yanıtı başarısız: ${response.status} ${response.statusText}`);
+      
+      // API başarısız olursa statik görsel listesini kullan - yedek çözüm
+      console.log('Statik galeri görsellerine dönülüyor...');
+      return staticGalleryImages.map((img, index) => ({
+        id: `static-${index}`,
+        image: img.path,
+        title: '',
+        description: '',
+        order: index,
+        type: 'image',
+        category: img.category
+      }));
+    }
+
+    const responseData = await response.json();
+    
+    // API yanıtını kontrol et ve dönüştür
+    if (responseData && responseData.success && Array.isArray(responseData.items)) {
+      console.log(`${responseData.items.length} galeri öğesi başarıyla alındı`);
+      
+      // Galeri öğelerini dönüştür
+      return responseData.items
+        .filter((item: any) => item !== null) // Null öğeleri filtrele
+        .map((item: any) => {
+          const videoUrl = item.videoUrl || item.video_url || '';
+          
+          return {
+            id: item.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
+            image: item.imageUrl || item.image_url || '',
+            videoUrl: videoUrl,
+            title: item.titleTR || item.title_tr || item.title || '',
+            description: item.descriptionTR || item.description_tr || item.description || '',
+            order: item.orderNumber || item.order_number || item.order || 0,
+            type: item.type || (videoUrl ? 'video' : 'image'),
+            category: item.category || 'all'
+          };
+        });
+    } else {
+      // Eğer API beklenen formatta veri dönmediyse
+      console.warn('API geçersiz veri formatında yanıt döndürdü:', responseData);
+      // Yine de responseData bir dizi ise onu kullanmaya çalış
+      if (Array.isArray(responseData)) {
+        return responseData
+          .filter((item: any) => item !== null)
+          .map((item: any) => ({
+            id: item.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
+            image: item.imageUrl || item.image_url || '',
+            videoUrl: item.videoUrl || item.video_url || '',
+            title: item.titleTR || item.title_tr || item.title || '',
+            description: item.descriptionTR || item.description_tr || item.description || '',
+            order: item.orderNumber || item.order_number || item.order || 0,
+            type: item.type || ((item.videoUrl || item.video_url) ? 'video' : 'image'),
+            category: item.category || 'all'
+          }));
+      }
+      
+      // Hiçbir veri dönmediyse statik listeyi kullan
+      console.log('Statik galeri görsellerine dönülüyor...');
+      return staticGalleryImages.map((img, index) => ({
+        id: `static-${index}`,
+        image: img.path,
+        title: '',
+        description: '',
+        order: index,
+        type: 'image',
+        category: img.category
+      }));
+    }
+  } catch (error) {
+    console.error('Galeri öğeleri alınırken hata oluştu:', error);
+    // Hata durumunda statik görsel listesi döndür
+    console.log('Statik galeri görsellerine dönülüyor...');
+    return staticGalleryImages.map((img, index) => ({
+      id: `static-${index}`,
+      image: img.path,
+      title: '',
+      description: '',
+      order: index,
+      type: 'image',
+      category: img.category
+    }));
+  }
 }
 
 /**
@@ -57,18 +155,9 @@ export function getImagePaths(): string[] {
 }
 
 /**
- * Tüm görselleri kategorilerine göre filtreleme (Use StaticGalleryImage type)
+ * Tüm görselleri kategorilerine göre filtreleme
  */
-export function filterImagesByCategory(images: StaticGalleryImage[], category: string): StaticGalleryImage[] {
+export function filterImagesByCategory(images: GalleryItem[], category: string): GalleryItem[] {
   if (category === 'all') return images;
-  // Add type for image in filter callback
-  return images.filter((image: StaticGalleryImage) => image.category === category);
-}
-
-/**
- * İleride server-side olarak dosya sisteminden görselleri yüklemek için
- * bu fonksiyonu fs modülü ile genişletebilirsiniz. (Use StaticGalleryImage type)
- */
-export async function loadGalleryImages(): Promise<StaticGalleryImage[]> {
-  return staticGalleryImages;
+  return images.filter(image => image.category === category);
 }

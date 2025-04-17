@@ -1,94 +1,408 @@
 import { NextRequest, NextResponse } from 'next/server';
-// Removed unused import: import { readAboutData, updateAboutData } from '../../../data/about';
-import { updateAboutData } from '../../../data/about'; // Keep updateAboutData
-import path from 'path';
-import fs from 'fs';
+import { executeQuery } from '@/lib/db';
+import { v4 as uuidv4 } from 'uuid';
+import { revalidatePath } from 'next/cache';
 
-// Verileri getir
-export async function GET() { // Removed unused 'request' parameter
+// About verilerini getir
+export async function GET() {
   try {
     console.log('API: GET /api/admin/about isteği alındı');
     
-    // Manuel olarak dosyayı okumayı deneyelim
+    // Veritabanı tablosunu kontrol et
     try {
-      const dataFilePath = path.join(process.cwd(), 'src', 'app', 'data', 'json', 'aboutData.json');
-      console.log('API: Dosya yolu:', dataFilePath);
-      console.log('API: Dosya var mı?', fs.existsSync(dataFilePath));
+      // Önce about_sections tablosunu kontrol et
+      const checkTableQuery = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'about_sections'
+        )
+      `;
       
-      if (fs.existsSync(dataFilePath)) {
-        const fileContent = fs.readFileSync(dataFilePath, 'utf8');
-        console.log('API: Dosya okundu, içerik uzunluğu:', fileContent.length);
+      const tableExists = await executeQuery(checkTableQuery);
+      
+      if (!tableExists.rows[0].exists) {
+        // Tablo yoksa oluştur
+        const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS about_sections (
+            id TEXT PRIMARY KEY,
+            title_tr TEXT NOT NULL,
+            title_en TEXT,
+            subtitle_tr TEXT,
+            subtitle_en TEXT,
+            content_tr TEXT,
+            content_en TEXT,
+            image_url TEXT,
+            position INTEGER DEFAULT 1,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
         
-        const jsonData = JSON.parse(fileContent);
-        console.log('API: JSON başarıyla işlendi');
+        await executeQuery(createTableQuery);
+        console.log('Tablo oluşturuldu: about_sections');
+      }
+      
+      // Şimdi sütunları kontrol et
+      for (const column of ['badges_tr', 'badges_en']) {
+        const checkColumnQuery = `
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_name = 'about_sections' AND column_name = '${column}'
+          )
+        `;
         
-        return NextResponse.json(jsonData, {
+        const columnExists = await executeQuery(checkColumnQuery);
+        
+        if (!columnExists.rows[0].exists) {
+          // Sütun yoksa ekle
+          const addColumnQuery = `
+            ALTER TABLE about_sections 
+            ADD COLUMN ${column} TEXT DEFAULT ''
+          `;
+          
+          await executeQuery(addColumnQuery);
+          console.log(`Sütun eklendi: ${column}`);
+        }
+      }
+    } catch (dbError) {
+      console.error('Veritabanı şema kontrolü hatası:', dbError);
+      // Veritabanı tablosu oluşturulamadı durumunda boş veri döndür
+      return NextResponse.json({
+        success: true,
+        titleTR: 'Hakkımızda',
+        titleEN: 'About Us',
+        subtitleTR: '',
+        subtitleEN: '',
+        contentTR: [],
+        contentEN: [],
+        imageUrl: '',
+        badgesTR: [],
+        badgesEN: [],
+        heroImage: '',
+        mainImage: ''
+      });
+    }
+    
+    // Verileri getir - Sütun adlarını kontrol et
+    const query = `
+      SELECT 
+        id,
+        title_tr as "titleTR",
+        title_en as "titleEN",
+        subtitle_tr as "subtitleTR",
+        subtitle_en as "subtitleEN",
+        content_tr as "contentTR",
+        content_en as "contentEN",
+        image_url as "imageUrl",
+        COALESCE(badges_tr, '') as "badgesTR",
+        COALESCE(badges_en, '') as "badgesEN",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM about_sections
+      ORDER BY position ASC
+      LIMIT 1
+    `;
+    
+    let result;
+    try {
+      result = await executeQuery(query);
+    } catch (dbError) {
+      console.error('Veritabanı sorgusu hatası:', dbError);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Veritabanı sorgusu hatası' 
+        },
+        { status: 500 }
+      );
+    }
+    
+    if (!result || !result.rows || result.rows.length === 0) {
+      // Veri yoksa temel yapıyla boş veri döndür
+      return NextResponse.json({
+        success: true,
+        titleTR: 'Hakkımızda',
+        titleEN: 'About Us',
+        subtitleTR: '',
+        subtitleEN: '',
+        contentTR: [],
+        contentEN: [],
+        imageUrl: '',
+        badgesTR: [],
+        badgesEN: [],
+        heroImage: '',
+        mainImage: ''
+      });
+    }
+    
+    // Veri varsa döndür ve imageUrl'i hem hero hem de main image olarak kullan
+    const aboutData = result.rows[0];
+    
+    // Alanları dönüştür
+    const transformedData = {
+      ...aboutData,
+      contentTR: Array.isArray(aboutData.contentTR) 
+        ? aboutData.contentTR 
+        : aboutData.contentTR ? aboutData.contentTR.split("\n") : [],
+      contentEN: Array.isArray(aboutData.contentEN) 
+        ? aboutData.contentEN 
+        : aboutData.contentEN ? aboutData.contentEN.split("\n") : [],
+      badgesTR: Array.isArray(aboutData.badgesTR) 
+        ? aboutData.badgesTR 
+        : aboutData.badgesTR ? aboutData.badgesTR.split(",") : [],
+      badgesEN: Array.isArray(aboutData.badgesEN) 
+        ? aboutData.badgesEN 
+        : aboutData.badgesEN ? aboutData.badgesEN.split(",") : [],
+      // Hero ve main image için de aynı URL'i kullan
+      heroImage: aboutData.imageUrl,
+      mainImage: aboutData.imageUrl
+    };
+    
+    return NextResponse.json(transformedData, {
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, must-revalidate'
           }
         });
-      } else {
-        throw new Error('aboutData.json dosyası bulunamadı');
-      }
-    } catch (fileError) {
-      console.error('API: Dosya okuma hatası:', fileError);
-      throw fileError;
-    }
-  } catch (error: unknown) { // Changed 'any' to 'unknown'
-    console.error('API: Hakkımızda verisi getirme hatası:', error);
-    let errorMessage = 'Hakkımızda verisi getirilemedi.';
+  } catch (error) {
+    console.error('API: About verisi alınırken hata:', error);
+    let errorMessage = 'About verisi alınamadı.';
     if (error instanceof Error) {
-      errorMessage = `Hakkımızda verisi getirilemedi: ${error.message}`;
+      errorMessage = `About verisi alınamadı: ${error.message}`;
     }
     return NextResponse.json(
-      { error: errorMessage },
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
-        }
-      }
+      { 
+        success: false,
+        error: errorMessage 
+      },
+      { status: 500 }
     );
   }
 }
 
-// Verileri güncelle
+// About verilerini güncelle
 export async function PUT(request: NextRequest) {
   try {
     console.log('API: PUT /api/admin/about isteği alındı');
-    const updateData = await request.json();
     
-    const updatedData = updateAboutData(updateData);
-    console.log('API: Veriler güncellendi');
+    const data = await request.json();
     
+    if (!data) {
     return NextResponse.json(
       {
-        success: true,
-        data: updatedData
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store'
+          success: false,
+          error: 'Geçersiz veri formatı' 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // İçerik kontrolü
+    if (!data.titleTR || !data.contentTR) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Başlık ve içerik alanları zorunludur' 
+        },
+        { status: 400 }
+      );
+    }
+    
+    // Veritabanı tablosunu kontrol et
+    try {
+      // Önce about_sections tablosunu kontrol et
+      const checkTableQuery = `
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'about_sections'
+        )
+      `;
+      
+      const tableExists = await executeQuery(checkTableQuery);
+      
+      if (!tableExists.rows[0].exists) {
+        // Tablo yoksa oluştur
+        const createTableQuery = `
+          CREATE TABLE IF NOT EXISTS about_sections (
+            id TEXT PRIMARY KEY,
+            title_tr TEXT NOT NULL,
+            title_en TEXT,
+            subtitle_tr TEXT,
+            subtitle_en TEXT,
+            content_tr TEXT,
+            content_en TEXT,
+            image_url TEXT,
+            position INTEGER DEFAULT 1,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          )
+        `;
+        
+        await executeQuery(createTableQuery);
+        console.log('Tablo oluşturuldu: about_sections');
+      }
+      
+      // Şimdi sütunları kontrol et
+      for (const column of ['badges_tr', 'badges_en']) {
+        const checkColumnQuery = `
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_name = 'about_sections' AND column_name = '${column}'
+          )
+        `;
+        
+        const columnExists = await executeQuery(checkColumnQuery);
+        
+        if (!columnExists.rows[0].exists) {
+          // Sütun yoksa ekle
+          const addColumnQuery = `
+            ALTER TABLE about_sections 
+            ADD COLUMN ${column} TEXT DEFAULT ''
+          `;
+          
+          await executeQuery(addColumnQuery);
+          console.log(`Sütun eklendi: ${column}`);
         }
       }
-    );
-  } catch (error: unknown) { // Changed 'any' to 'unknown'
-    console.error('API: Hakkımızda güncelleme hatası:', error);
-    let errorMessage = 'Hakkımızda bilgileri güncellenemedi.';
+    } catch (dbError) {
+      console.error('Veritabanı şema kontrolü hatası:', dbError);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Veritabanı yapılandırma hatası' 
+        },
+        { status: 500 }
+      );
+    }
+    
+    // Veritabanında veri var mı kontrol et
+    const checkQuery = `SELECT id FROM about_sections LIMIT 1`;
+    const checkResult = await executeQuery(checkQuery);
+    
+    let result;
+    
+    // Önce içerik alanlarını dizi ise stringe dönüştür
+    const contentTR = Array.isArray(data.contentTR) ? data.contentTR.join("\n") : data.contentTR;
+    const contentEN = Array.isArray(data.contentEN) ? data.contentEN.join("\n") : data.contentEN;
+    const badgesTR = Array.isArray(data.badgesTR) ? data.badgesTR.join(",") : data.badgesTR;
+    const badgesEN = Array.isArray(data.badgesEN) ? data.badgesEN.join(",") : data.badgesEN;
+    
+    if (!checkResult.rows || checkResult.rows.length === 0) {
+      // Veri yoksa yeni ekle
+      const insertQuery = `
+        INSERT INTO about_sections (
+          id, 
+          title_tr, 
+          title_en, 
+          subtitle_tr, 
+          subtitle_en, 
+          content_tr, 
+          content_en, 
+          image_url,
+          badges_tr,
+          badges_en,
+          position,
+          created_at, 
+          updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, NOW(), NOW()
+        )
+        RETURNING *
+      `;
+      
+      result = await executeQuery(insertQuery, [
+        uuidv4(),
+        data.titleTR,
+        data.titleEN || '',
+        data.subtitleTR || '',
+        data.subtitleEN || '',
+        contentTR,
+        contentEN || '',
+        data.imageUrl || '',
+        badgesTR || '',
+        badgesEN || ''
+      ]);
+      
+      console.log('Yeni about kaydı oluşturuldu');
+    } else {
+      // Veri varsa güncelle
+      const id = checkResult.rows[0].id;
+      
+      const updateQuery = `
+        UPDATE about_sections
+        SET 
+          title_tr = $1,
+          title_en = $2,
+          subtitle_tr = $3,
+          subtitle_en = $4,
+          content_tr = $5,
+          content_en = $6,
+          image_url = $7,
+          badges_tr = $8,
+          badges_en = $9,
+          updated_at = NOW()
+        WHERE id = $10
+        RETURNING *
+      `;
+      
+      result = await executeQuery(updateQuery, [
+        data.titleTR,
+        data.titleEN || '',
+        data.subtitleTR || '',
+        data.subtitleEN || '',
+        contentTR,
+        contentEN || '',
+        data.imageUrl || '',
+        badgesTR || '',
+        badgesEN || '',
+        id
+      ]);
+      
+      console.log('Mevcut about kaydı güncellendi');
+    }
+    
+    // Verileri dönüştür
+    const updatedData = {
+      ...result.rows[0],
+      titleTR: result.rows[0].title_tr,
+      titleEN: result.rows[0].title_en,
+      subtitleTR: result.rows[0].subtitle_tr,
+      subtitleEN: result.rows[0].subtitle_en,
+      contentTR: result.rows[0].content_tr ? result.rows[0].content_tr.split("\n") : [],
+      contentEN: result.rows[0].content_en ? result.rows[0].content_en.split("\n") : [],
+      imageUrl: result.rows[0].image_url,
+      badgesTR: result.rows[0].badges_tr ? result.rows[0].badges_tr.split(",") : [],
+      badgesEN: result.rows[0].badges_en ? result.rows[0].badges_en.split(",") : [],
+      createdAt: result.rows[0].created_at,
+      updatedAt: result.rows[0].updated_at,
+      heroImage: result.rows[0].image_url,
+      mainImage: result.rows[0].image_url
+    };
+    
+    // API yollarını yeniden doğrula
+    revalidatePath('/api/about');
+    revalidatePath('/api/admin/about');
+    revalidatePath('/about');
+    revalidatePath('/[lang]/about');
+    
+    return NextResponse.json({
+      success: true,
+      message: 'About verisi başarıyla güncellendi',
+      data: updatedData
+    });
+    
+  } catch (error) {
+    console.error('API: About verisi güncellenirken hata:', error);
+    let errorMessage = 'About verisi güncellenemedi.';
     if (error instanceof Error) {
-      errorMessage = `Hakkımızda bilgileri güncellenemedi: ${error.message}`;
+      errorMessage = `About verisi güncellenemedi: ${error.message}`;
     }
     return NextResponse.json(
-      { error: errorMessage },
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json' 
-        }
-      }
+      { 
+        success: false,
+        error: errorMessage 
+      },
+      { status: 500 }
     );
   }
 }

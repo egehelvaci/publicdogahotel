@@ -258,6 +258,75 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
     // Removed: const { getSiteRoomById } = require('./admin/roomsData');
 
     try {
+      const timestamp = Date.now(); // Cache'lemeden kaçınmak için timestamp ekle
+      const baseUrl = typeof window !== 'undefined' 
+        ? window.location.origin 
+        : 'http://localhost:3000';
+        
+      const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+      console.log('Direkt API isteği yapılıyor:', url);
+      
+      // Direkt API'den veriyi almaya çalış
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('API yanıtı:', JSON.stringify(result, null, 2));
+        
+        if (result.success && result.data) {
+          console.log('API\'den doğrudan oda verisi alındı:', result.data.id);
+          console.log('Oda verileri (API):', {
+            id: result.data.id,
+            nameTR: result.data.nameTR, 
+            nameEN: result.data.nameEN,
+            image: result.data.mainImageUrl || result.data.image,
+            gallery: result.data.gallery || [],
+            featuresTR: result.data.featuresTR || [],
+            featuresEN: result.data.featuresEN || []
+          });
+          
+          // Feature alanları kontrolü
+          const features = lang === 'tr' 
+            ? (result.data.featuresTR || []) 
+            : (result.data.featuresEN || []);
+            
+          console.log('Özellikler:', features);
+          
+          // Oda nesnesini oluştur
+          const roomData = {
+            id: result.data.id,
+            name: lang === 'tr' ? result.data.nameTR : result.data.nameEN,
+            description: lang === 'tr' ? result.data.descriptionTR : result.data.descriptionEN,
+            image: result.data.mainImageUrl || result.data.image,
+            price: lang === 'tr' ? result.data.priceTR : result.data.priceEN,
+            capacity: result.data.capacity,
+            size: result.data.size,
+            features: features,
+            gallery: result.data.gallery || []
+          };
+          
+          console.log('Oluşturulan oda nesnesi:', roomData);
+          return roomData;
+        } else {
+          console.error('API yanıtı başarısız veya veri yok:', result);
+        }
+      }
+    } catch (apiError) {
+      console.error('API üzerinden oda arama hatası:', apiError);
+    }
+    
+    // admin/roomsData'dan getSiteRoomById kullan
+    try {
       const room = await getSiteRoomById(lang, id);
       
       if (room) {
@@ -267,7 +336,7 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
         return room;
       }
     } catch (apiError) {
-      console.error('API üzerinden oda arama hatası:', apiError);
+      console.error('admin/roomsData üzerinden oda arama hatası:', apiError);
     }
     
     // Bulunamadıysa veya API hatası varsa, sabit verilerde arayalım

@@ -1,5 +1,7 @@
+'use client';
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from 'react-hot-toast';
 
 // Slider öğesi arayüzü
 export interface SliderItem {
@@ -8,47 +10,157 @@ export interface SliderItem {
   videoUrl?: string; // Video URL (isteğe bağlı)
   titleTR: string;
   titleEN: string;
-  subtitleTR: string;
-  subtitleEN: string;
-  descriptionTR: string;
-  descriptionEN: string;
+  subtitleTR?: string;
+  subtitleEN?: string;
+  descriptionTR?: string;
+  descriptionEN?: string;
   order: number;
   active: boolean;
 }
 
+interface NewSliderItem {
+  titleTR: string;
+  titleEN: string;
+  subtitleTR?: string;
+  subtitleEN?: string;
+  descriptionTR?: string;
+  descriptionEN?: string;
+  image: string;
+  videoUrl?: string;
+  active?: boolean;
+}
+
 // API bağlantıları
-const API_URL = '/api/slider';
-const REORDER_API_URL = '/api/slider/reorder';
+const API_URL = '/api/hero-slider';
+const REORDER_API_URL = '/api/hero-slider/reorder';
+const UPLOAD_API_URL = '/api/admin/slider/upload';
 
-// Tüm slider öğelerini getir (admin için)
-export async function getAllSliderData(): Promise<SliderItem[]> {
+// Medya yükleme fonksiyonu (ImageKit kullanarak)
+export async function uploadSliderMedia(file: File): Promise<{fileUrl: string, fileId: string, fileType: string} | null> {
   try {
-    console.log('Admin: Tüm slider verilerini getir - API URL:', API_URL);
+    console.log('Admin: Slider medyası yükleniyor');
     
-    const response = await axios.get(API_URL, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache'
-      }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'slider');
+    
+    const response = await fetch(UPLOAD_API_URL, {
+      method: 'POST',
+      body: formData
     });
-
-    if (response.status === 200 && response.data) {
-      console.log(`Admin: ${response.data.length} slider öğesi başarıyla yüklendi`);
-      
-      // API'den boş veri gelmesi durumunda default veri
-      if (!response.data || response.data.length === 0) {
-        console.warn('Admin: API boş veri döndürdü, varsayılan veri kullanılıyor');
-        return getDefaultSliderData();
-      }
-
-      return response.data;
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Medya yüklenirken bir hata oluştu');
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.fileUrl) {
+      console.log('Admin: Medya başarıyla yüklendi:', data.fileUrl);
+      return {
+        fileUrl: data.fileUrl,
+        fileId: data.fileId || '',
+        fileType: data.fileType || (data.fileUrl.includes('.mp4') ? 'video' : 'image')
+      };
     } else {
-      throw new Error(`API beklenmeyen yanıt döndürdü: ${response.status}`);
+      throw new Error('Medya yükleme yanıtı geçersiz');
     }
   } catch (error) {
-    console.error('Admin: Slider verileri getirilirken hata oluştu:', error);
-    console.log('Admin: Varsayılan slider verisi kullanılacak');
-    return getDefaultSliderData();
+    console.error('Admin: Slider medyası yüklenirken hata oluştu:', error);
+    return null;
+  }
+}
+
+// Tüm slider öğelerini getir
+export async function getAllSliderData(): Promise<SliderItem[]> {
+  try {
+    console.log('getAllSliderData: API isteği gönderiliyor...');
+    
+    const timestamp = new Date().getTime(); // Önbellek sorunlarını önlemek için
+    const response = await fetch(`${API_URL}/?t=${timestamp}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // Hata kontrolü
+    if (!response.ok) {
+      console.error('Slider verileri çekilirken HTTP hatası:', response.status, response.statusText);
+      
+      // Hata mesajını almaya çalış
+      let errorMsg = 'API isteği başarısız oldu';
+      try {
+        const errorData = await response.json();
+        errorMsg = errorData.message || errorMsg;
+      } catch (e) {
+        // JSON çözümlenemezse orijinal hata mesajını kullan
+      }
+      
+      throw new Error(`Slider verileri alınamadı: ${errorMsg}`);
+    }
+    
+    // Yanıtı analiz et
+    const responseText = await response.text();
+    console.log('API ham yanıtı:', responseText.substring(0, 200) + '...');
+    
+    // JSON'a dönüştürmeyi dene
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      console.error('API yanıtı JSON olarak ayrıştırılamadı:', error);
+      throw new Error('API yanıtı geçersiz JSON formatında');
+    }
+    
+    // API yanıt formatını kontrol et
+    if (!data || typeof data !== 'object') {
+      console.error('API yanıtı geçersiz format (nesne değil):', data);
+      throw new Error('API yanıt formatı geçersiz (nesne değil)');
+    }
+    
+    if (!data.success && data.message) {
+      console.error('API başarısız yanıt döndü:', data.message);
+      throw new Error(`API hatası: ${data.message}`);
+    }
+    
+    if (!Array.isArray(data.data)) {
+      console.error('API yanıtında data dizisi yok:', data);
+      throw new Error('API yanıt formatı geçersiz (data dizisi yok)');
+    }
+    
+    // Veri yapısını düzenleme
+    const mappedData = data.data.map((item: any) => {
+      // image kullanılacak alanı kontrol et
+      if (item.imageUrl && !item.image) {
+        item.image = item.imageUrl;
+      } else if (!item.image && item.image === "") {
+        item.image = ""; // Boş bırak
+      }
+      
+      // order/orderNumber alanını kontrol et
+      if (item.orderNumber !== undefined && item.order === undefined) {
+        item.order = item.orderNumber;
+      }
+      
+      console.log('Dönüştürülen slider öğesi:', {
+        id: item.id,
+        titleTR: item.titleTR,
+        image: item.image,
+        order: item.order
+      });
+      
+      return item;
+    });
+    
+    console.log(`${mappedData.length} slider öğesi alındı`);
+    return mappedData;
+  } catch (error) {
+    console.error('Slider verileri getirilirken hata:', error);
+    toast.error('Slider verileri yüklenirken bir hata oluştu');
+    return [];
   }
 }
 
@@ -57,28 +169,108 @@ export async function getSliderData(): Promise<SliderItem[]> {
   try {
     console.log('Anasayfa: Slider verilerini getir - API URL:', API_URL);
     
-    const response = await fetch(API_URL, {
+    // Önbellek sorunlarını önlemek için zaman damgası ekle
+    const timestamp = new Date().getTime();
+    
+    const response = await fetch(`${API_URL}/?t=${timestamp}`, {
       method: 'GET',
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache'
       },
-      cache: 'no-store'
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
 
     if (!response.ok) {
-      console.warn('API yanıtı başarısız, varsayılan veriler kullanılıyor');
+      console.warn('API yanıtı başarısız, varsayılan veriler kullanılıyor. Status:', response.status);
       return filterActiveSliderItems(getDefaultSliderData());
     }
 
-    const data = await response.json();
+    // Önce response.text() ile ham veriyi al
+    const responseText = await response.text();
+    console.log('API ham yanıtı (ilk 100 karakter):', responseText.substring(0, 100));
+    
+    // Sonra JSON'a dönüştür
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (error) {
+      console.error('API yanıtı JSON olarak ayrıştırılamadı:', error);
+      return filterActiveSliderItems(getDefaultSliderData());
+    }
+    
+    // Veri yapısını kontrol et
+    if (!responseData || !responseData.success || !responseData.data) {
+      console.warn('Anasayfa: API yanıtı geçersiz, varsayılan veri kullanılıyor');
+      return filterActiveSliderItems(getDefaultSliderData());
+    }
+    
+    const data = responseData.data;
+    
+    // API yanıtının yapısını kontrol et
+    if (!Array.isArray(data)) {
+      console.warn('Anasayfa: API yanıtı dizi değil, varsayılan veri kullanılıyor');
+      return filterActiveSliderItems(getDefaultSliderData());
+    }
+    
+    // Debug: API yanıtının yapısını konsola yazdır
+    console.log('API yanıtı (veri sayısı):', data.length);
+    if (data.length > 0) {
+      console.log('İlk öğe örneği:', JSON.stringify({
+        id: data[0].id,
+        titleTR: data[0].titleTR,
+        image: data[0].image?.substring(0, 50),
+        videoUrl: data[0].videoUrl?.substring(0, 50)
+      }));
+    }
     
     // API'den boş veri gelmesi durumunda varsayılan veri
-    if (!data || data.length === 0) {
+    if (data.length === 0) {
       console.warn('Anasayfa: API boş veri döndürdü, varsayılan veri kullanılıyor');
       return filterActiveSliderItems(getDefaultSliderData());
     }
     
-    return filterActiveSliderItems(data);
+    // Verilerin doğru formatta olduğundan emin ol (image alanı var mı?)
+    const validatedData = data.map(item => {
+      // Görsel alanını kontrol et
+      if (!item.image && item.imageUrl) {
+        console.log('Veri düzeltiliyor: imageUrl -> image', item.id);
+        item.image = item.imageUrl;
+      }
+      
+      // Order/sıra alanını kontrol et
+      if (item.orderNumber !== undefined && item.order === undefined) {
+        console.log('Veri düzeltiliyor: orderNumber -> order', item.id);
+        item.order = item.orderNumber;
+      }
+      
+      // Null değerleri string değerlere dönüştür
+      if (item.titleTR === null) item.titleTR = '';
+      if (item.titleEN === null) item.titleEN = '';
+      if (item.subtitleTR === null) item.subtitleTR = '';
+      if (item.subtitleEN === null) item.subtitleEN = '';
+      if (item.descriptionTR === null) item.descriptionTR = '';
+      if (item.descriptionEN === null) item.descriptionEN = '';
+      
+      // Görüntü ve video kontrolü
+      if (!item.image && !item.videoUrl) {
+        console.warn(`Uyarı: ${item.id} ID'li slider öğesinin görsel veya video URL'si yok`);
+      }
+      
+      // İşlenmiş veriyi konsola yazdır
+      console.log(`Slider öğesi ${item.id} işlendi:`, 
+                 `image=${item.image?.substring(0, 30) || 'Yok'}`,
+                 `videoUrl=${item.videoUrl?.substring(0, 30) || 'Yok'}`,
+                 `order=${item.order}`);
+      
+      return item;
+    });
+    
+    const activeItems = filterActiveSliderItems(validatedData);
+    console.log(`${activeItems.length} aktif slider öğesi bulundu`);
+    
+    return activeItems;
   } catch (error) {
     console.error('Slider verileri alınırken hata oluştu:', error);
     // Hata durumunda varsayılan veri kullan
@@ -93,148 +285,343 @@ function filterActiveSliderItems(items: SliderItem[]): SliderItem[] {
     .sort((a, b) => a.order - b.order);
 }
 
+// Görsel URL'sini düzenle (nesne veya string olabilir)
+function formatImageUrl(image: any): string {
+  // Eğer image undefined veya null ise boş string döndür
+  if (!image) {
+    return '';
+  }
+  
+  // Eğer image bir nesne ise
+  if (typeof image === 'object') {
+    // Nesne içinde url, fileUrl veya src özellikleri var mı kontrol et
+    if (image.url) return image.url;
+    if (image.fileUrl) return image.fileUrl;
+    if (image.src) return image.src;
+    
+    // Olası özellikler yoksa ve nesne stringifiy edilebiliyorsa
+    try {
+      console.warn('Görsel nesnesi düzeltilemiyor, nesne detayları:', JSON.stringify(image));
+    } catch (e) {
+      console.error('Görsel nesnesi loglanamadı');
+    }
+    return '';
+  }
+  
+  // Eğer image string ise ve URL formatında değilse
+  if (typeof image === 'string') {
+    if (!image.startsWith('http') && !image.startsWith('/')) {
+      return `/${image}`;
+    }
+    return image;
+  }
+  
+  // Diğer veri tipleri için boş string döndür
+  console.warn('Beklenmeyen görsel veri tipi:', typeof image);
+  return '';
+}
+
 // Yeni slider öğesi ekle
-export async function addSliderItem(item: Omit<SliderItem, 'id' | 'order'>): Promise<SliderItem | null> {
+export async function addSliderItem(item: NewSliderItem): Promise<SliderItem | null> {
   try {
-    console.log('Admin: Yeni slider öğesi ekleniyor');
-    // Mevcut tüm öğeleri al
-    const currentItems = await getAllSliderData();
+    console.log('addSliderItem: API isteği gönderiliyor...');
     
-    // Yeni öğe için kimlik ve sıra numarası oluştur
-    const newItem: SliderItem = {
+    // Veri işleme için özel kopyalama, null veya undefined değerleri temizleme
+    const processedItem = {
       ...item,
-      id: uuidv4(),
-      order: currentItems.length + 1
+      titleTR: item.titleTR?.trim() || '',
+      titleEN: item.titleEN?.trim() || '',
+      subtitleTR: item.subtitleTR?.trim() || null,
+      subtitleEN: item.subtitleEN?.trim() || null,
+      descriptionTR: item.descriptionTR?.trim() || null,
+      descriptionEN: item.descriptionEN?.trim() || null,
+      image: item.image || null,
+      videoUrl: item.videoUrl || null,
+      active: item.active !== undefined ? item.active : true
     };
-
-    // Görsel yolunu düzelt (eğer tam URL değilse)
-    if (newItem.image && !newItem.image.startsWith('http') && !newItem.image.startsWith('/')) {
-      newItem.image = `/${newItem.image}`;
-    }
-
-    console.log('Admin: Yeni öğe oluşturuldu:', newItem);
-
-    const response = await axios.post(API_URL, newItem, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      }
-    });
-
-    if (response.status === 201 && response.data) {
-      console.log('Admin: Yeni slider öğesi başarıyla eklendi:', response.data);
-      return response.data;
-    } else {
-      throw new Error(`API beklenmeyen yanıt döndürdü: ${response.status}`);
-    }
-  } catch (error) {
-    console.error('Admin: Slider öğesi eklenirken hata oluştu:', error);
-    return null;
-  }
-}
-
-// Slider öğesini güncelle
-export async function updateSliderItem(id: string, updates: Partial<Omit<SliderItem, 'id' | 'order'>>): Promise<SliderItem | null> {
-  try {
-    console.log('Admin: Slider öğesi güncelleniyor:', id);
     
-    // Görsel yolunu düzelt (eğer tam URL değilse)
-    const updatedItem = { ...updates, id };
-    if (updatedItem.image && !updatedItem.image.startsWith('http') && !updatedItem.image.startsWith('/')) {
-      updatedItem.image = `/${updatedItem.image}`;
+    console.log('İstek gövdesi:', JSON.stringify(processedItem, null, 2));
+    
+    // Validasyon
+    if (!processedItem.titleTR || !processedItem.titleEN) {
+      const error = 'Başlık alanları zorunludur';
+      console.error('Validasyon hatası:', error);
+      toast.error(error);
+      return null;
+    }
+    
+    // Görsel veya video gerekli
+    if (!processedItem.image && !processedItem.videoUrl) {
+      const error = 'Görsel veya video gereklidir';
+      console.error('Validasyon hatası:', error);
+      toast.error(error);
+      return null;
     }
 
-    const response = await axios.put(API_URL, updatedItem, {
+    // fetch ile API isteği
+    console.log(`POST isteği gönderiliyor: ${API_URL}`);
+    
+    const response = await fetch(API_URL, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      }
+      },
+      body: JSON.stringify(processedItem),
     });
-
-    if (response.status === 200 && response.data) {
-      console.log('Admin: Slider öğesi başarıyla güncellendi:', response.data);
-      return response.data;
-    } else {
-      throw new Error(`API beklenmeyen yanıt döndürdü: ${response.status}`);
+    
+    // Yanıt durumunu kontrol et
+    if (!response.ok) {
+      // Hata yanıtını almaya çalış
+      let errorMessage = `HTTP hatası: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        console.error('API hata yanıtı:', errorData);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        console.error('API hata yanıtı ayrıştırılamadı:', e);
+        try {
+          const errorText = await response.text();
+          console.error('API ham hata yanıtı:', errorText);
+        } catch (textError) {
+          console.error('API ham yanıt alınamadı:', textError);
+        }
+      }
+      
+      throw new Error(`Slider eklenirken API hatası: "${errorMessage}"`);
     }
+    
+    // Başarılı yanıtı ayrıştır
+    const data = await response.json();
+    console.log('API yanıtı:', data);
+    
+    // Başarı durumunu ve veri kontrolü
+    if (!data.success || !data.data) {
+      throw new Error(data.message || 'API yanıtında data nesnesi yok');
+    }
+    
+    console.log('Yeni slider başarıyla eklendi:', data.data);
+    toast.success('Slider öğesi başarıyla eklendi');
+    
+    return data.data;
   } catch (error) {
-    console.error('Admin: Slider öğesi güncellenirken hata oluştu:', error);
+    console.error('Slider ekleme hatası:', error);
+    let errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
+    toast.error(errorMessage);
+    throw error; // Hatayı tekrar fırlat ki çağıran fonksiyon yakalasın
+  }
+}
+
+// Slider öğesi güncelle
+export async function updateSliderItem(id: string, item: Partial<SliderItem>): Promise<SliderItem | null> {
+  try {
+    console.log('updateSliderItem: API isteği gönderiliyor...', {id, item});
+    
+    if (!id) {
+      toast.error('Güncellenecek slider ID gerekli');
+      return null;
+    }
+
+    // fetch ile API isteği
+    const response = await fetch(API_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({...item, id}),
+    });
+    
+    // Yanıt durumunu kontrol et
+    if (!response.ok) {
+      // Hata yanıtını almaya çalış
+      let errorMessage = `HTTP hatası: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        console.error('API hata yanıtı:', errorData);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        console.error('API hata yanıtı ayrıştırılamadı:', e);
+        try {
+          const errorText = await response.text();
+          console.error('API ham hata yanıtı:', errorText);
+        } catch (textError) {
+          console.error('API ham yanıt alınamadı:', textError);
+        }
+      }
+      
+      toast.error(`Slider güncellenemedi: ${errorMessage}`);
+      return null;
+    }
+    
+    // Başarılı yanıtı ayrıştır
+    const data = await response.json();
+    console.log('API yanıtı:', data);
+    
+    // Başarı durumunu ve veri kontrolü
+    if (!data.success || !data.data) {
+      const errorMessage = data.message || 'API yanıtında data nesnesi yok';
+      toast.error(`Slider güncellenemedi: ${errorMessage}`);
+      return null;
+    }
+    
+    console.log('Slider başarıyla güncellendi:', data.data);
+    toast.success('Slider başarıyla güncellendi');
+    return data.data;
+  } catch (error) {
+    console.error('Slider güncellenirken hata:', error);
+    toast.error('Slider güncellenirken bir hata oluştu');
     return null;
   }
 }
 
-// Slider öğesini sil
+// Slider öğesi sil
 export async function deleteSliderItem(id: string): Promise<boolean> {
   try {
-    console.log('Admin: Slider öğesi siliniyor:', id);
-    const response = await axios.delete(`${API_URL}?id=${id}`, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      }
-    });
-
-    if (response.status === 200) {
-      console.log('Admin: Slider öğesi başarıyla silindi');
-      return true;
-    } else {
-      throw new Error(`API beklenmeyen yanıt döndürdü: ${response.status}`);
+    console.log('deleteSliderItem: API isteği gönderiliyor...', id);
+    
+    if (!id) {
+      toast.error('Silinecek slider ID gerekli');
+      return false;
     }
+    
+    // fetch ile API isteği
+    const response = await fetch(`${API_URL}?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    
+    // Yanıt durumunu kontrol et
+    if (!response.ok) {
+      // Hata yanıtını almaya çalış
+      let errorMessage = `HTTP hatası: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        console.error('API hata yanıtı:', errorData);
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        console.error('API hata yanıtı ayrıştırılamadı:', e);
+        try {
+          const errorText = await response.text();
+          console.error('API ham hata yanıtı:', errorText);
+        } catch (textError) {
+          console.error('API ham yanıt alınamadı:', textError);
+        }
+      }
+      
+      toast.error(`Slider silinemedi: ${errorMessage}`);
+      return false;
+    }
+    
+    // Başarılı yanıtı ayrıştır
+    const data = await response.json();
+    console.log('API yanıtı:', data);
+    
+    // Başarı durumunu kontrol et
+    if (!data.success) {
+      const errorMessage = data.message || 'API yanıtı başarısız';
+      toast.error(`Slider silinemedi: ${errorMessage}`);
+      return false;
+    }
+    
+    console.log('Slider başarıyla silindi:', data.data);
+    toast.success('Slider başarıyla silindi');
+    return true;
   } catch (error) {
-    console.error('Admin: Slider öğesi silinirken hata oluştu:', error);
+    console.error('Slider silinirken hata:', error);
+    toast.error('Slider silinirken bir hata oluştu');
     return false;
   }
 }
 
-// Slider öğelerini yeniden sırala
-export async function reorderSliderItems(orderedIds: { id: string; order: number }[]): Promise<SliderItem[] | null> {
+// Slider sıralamasını güncelle
+export async function reorderSliderItems(items: Partial<SliderItem>[]): Promise<SliderItem[]> {
   try {
-    console.log('Admin: Slider öğeleri yeniden sıralanıyor');
-    const response = await axios.post(REORDER_API_URL, orderedIds, {
+    console.log('reorderSliderItems: API isteği gönderiliyor...', items);
+    
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      toast.error('Geçerli sıralama verisi gerekli');
+      return [];
+    }
+    
+    const response = await fetch('/api/hero-slider/reorder', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      }
+      },
+      body: JSON.stringify({ items }),
     });
-
-    if (response.status === 200 && response.data) {
-      console.log('Admin: Slider öğeleri başarıyla yeniden sıralandı');
-      return response.data;
-    } else {
-      throw new Error(`API beklenmeyen yanıt döndürdü: ${response.status}`);
+    
+    // Ham yanıtı kontrol et
+    const responseText = await response.text();
+    console.log('Ham API yanıtı:', responseText);
+    
+    // JSON çözümleye çalış
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (error) {
+      console.error('API yanıtı JSON çözümleme hatası:', error);
+      toast.error('Sunucu yanıtı geçersiz format');
+      return [];
     }
+    
+    // Hata kontrolü
+    if (!response.ok || !data.success) {
+      const errorMsg = data.message || 'Bilinmeyen API hatası';
+      console.error('Sıralama güncellenirken API hatası:', errorMsg);
+      toast.error(`Sıralama güncellenemedi: ${errorMsg}`);
+      return [];
+    }
+    
+    console.log('Sıralama başarıyla güncellendi:', data.data);
+    toast.success('Sıralama başarıyla güncellendi');
+    return data.data;
   } catch (error) {
-    console.error('Admin: Slider öğeleri yeniden sıralanırken hata oluştu:', error);
-    return null;
+    console.error('Sıralama güncellenirken hata:', error);
+    toast.error('Sıralama güncellenirken bir hata oluştu');
+    return [];
   }
 }
 
 // Varsayılan slider verisi
 function getDefaultSliderData(): SliderItem[] {
   console.log('Varsayılan slider verisi kullanılıyor');
-  return [
+  
+  const defaultItems = [
     {
-      id: '1',
-      image: '/images/slider/slider-1.jpg',
-      titleTR: 'Doğa ile İç İçe',
-      titleEN: 'In Harmony with Nature',
-      subtitleTR: 'Huzur dolu bir tatil',
-      subtitleEN: 'A peaceful holiday',
-      descriptionTR: 'Doğanın kalbinde unutulmaz bir tatil deneyimi',
-      descriptionEN: 'An unforgettable holiday experience in the heart of nature',
+      id: 'default-1',
+      image: '/images/default-slider-1.jpg',
+      titleTR: 'Varsayılan Başlık 1',
+      titleEN: 'Default Title 1',
+      subtitleTR: 'Varsayılan Alt Başlık 1',
+      subtitleEN: 'Default Subtitle 1',
+      descriptionTR: 'Bu varsayılan bir açıklamadır. API çalışmadığında görünür.',
+      descriptionEN: 'This is a default description. Shown when API is not working.',
       order: 1,
       active: true
     },
     {
-      id: '2',
-      image: '/images/slider/slider-2.jpg',
-      titleTR: 'Konforlu Odalar',
-      titleEN: 'Comfortable Rooms',
-      subtitleTR: 'Evinizi aratmayacak konfor',
-      subtitleEN: 'Comfort that won\'t make you miss home',
-      descriptionTR: 'Modern olanaklarla donatılmış ferah odalar',
-      descriptionEN: 'Spacious rooms equipped with modern amenities',
+      id: 'default-2',
+      image: '/images/default-slider-2.jpg',
+      titleTR: 'Varsayılan Başlık 2',
+      titleEN: 'Default Title 2',
+      subtitleTR: 'Varsayılan Alt Başlık 2',
+      subtitleEN: 'Default Subtitle 2',
+      descriptionTR: 'Bu varsayılan bir açıklamadır. API çalışmadığında görünür.',
+      descriptionEN: 'This is a default description. Shown when API is not working.',
       order: 2,
       active: true
     }
   ];
+  
+  // /public klasöründe bu görseller var mı kontrol et
+  const isRunningInBrowser = typeof window !== 'undefined';
+  if (isRunningInBrowser) {
+    // Varsayılan görsellerin URL'lerini test et
+    defaultItems.forEach(item => {
+      console.log(`Varsayılan görsel test ediliyor: ${item.image}`);
+      // Test görsellerini değiştir - daha güvenilir bir seçenek
+      item.image = '/images/placeholder.png';
+    });
+  }
+  
+  return defaultItems;
 } 

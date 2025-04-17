@@ -29,9 +29,9 @@ export default function ContactPage({ lang }: ContactPageProps) {
 
   // Google Harita koordinatları - Fethiye, Ölüdeniz koordinatları
   const mapLocation = {
-    latitude: 36.57510817791861,
-    longitude: 29.1534668103918,
-    zoom: 17
+    latitude: 36.5744812,
+    longitude: 29.1481249,
+    zoom: 18.75
   };
 
   // Google Maps URL - Belirli bir koordinatı işaretleyen harita

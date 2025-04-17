@@ -14,35 +14,16 @@ interface RoomDetailPageProps {
 
 // Sayfayı tamamen dinamik yapmak için
 export const dynamic = 'force-dynamic';
-// Edge runtime'ı kaldıralım - hydration sorunlarına yol açabilir
-// export const runtime = 'edge';
 export const fetchCache = 'force-no-store';
-
-// Bilinen oda ID'leri - URL parametrelerinde kullanılır
-const KNOWN_ROOM_IDS = [
-  'standard-room',
-  'triple-room',
-  'suite-room',
-  'apart-room'
-];
+export const runtime = 'nodejs';
 
 export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
   // Next.js 15'te params Promise olduğu için await ile çözümlüyoruz
   const resolvedParams = await params;
   const lang = resolvedParams.lang;
-  let id = decodeURIComponent(resolvedParams.id);
+  const id = decodeURIComponent(resolvedParams.id);
   
   console.log('Orijinal Oda ID:', id);
-  
-  // UUID formatındaki ID'leri bilinen ID'lerle eşleştirmeye çalış
-  if (!KNOWN_ROOM_IDS.includes(id)) {
-    // Eğer ID bilinen listede yoksa, 'standard-room' kullan (varsayılan oda)
-    console.log('ID bilinen listede değil, varsayılan odaya yönlendiriliyor');
-    id = 'standard-room';
-  }
-  
-  console.log('Kullanılan Oda ID:', id);
-  console.log('Dil:', lang);
   
   // Mevcut odaları kontrol et
   const allRooms = await getRoomsForLanguage(lang);

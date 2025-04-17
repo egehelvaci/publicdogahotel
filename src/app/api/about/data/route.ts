@@ -1,46 +1,45 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import fs from 'fs';
+import { executeQuery } from '@/lib/db';
 
-// Statik JSON yanıtı döndüren basit endpoint
-export async function GET() { // Removed unused 'request' parameter
+// GET - About verilerini getir
+export async function GET() {
   try {
-    console.log('API: Alternatif GET /api/about/data isteği alındı');
+    console.log('API: GET /api/about/data isteği alındı');
     
-    // JSON dosyasının yolu
-    const dataFilePath = path.join(process.cwd(), 'src', 'app', 'data', 'json', 'aboutData.json');
-    console.log('API: Alternatif dosya yolu:', dataFilePath);
+    const query = `
+      SELECT 
+        id,
+        title_tr as "titleTR",
+        title_en as "titleEN",
+        subtitle_tr as "subtitleTR",
+        subtitle_en as "subtitleEN",
+        content_tr as "contentTR",
+        content_en as "contentEN",
+        image_url as "imageUrl",
+        video_url as "videoUrl",
+        position,
+        show_on_home as "showOnHome",
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM about_sections
+      ORDER BY position ASC
+    `;
     
-    // Dosya var mı kontrol et
-    if (!fs.existsSync(dataFilePath)) {
-      console.error('API: Alternatif dosya bulunamadı');
-      return NextResponse.json(
-        { error: 'aboutData.json dosyası bulunamadı' },
-        { status: 404 }
-      );
-    }
+    const result = await executeQuery(query);
+    console.log('About verisi başarıyla alındı, veri sayısı:', result.rows.length);
     
-    // Dosyayı oku
-    const fileContent = fs.readFileSync(dataFilePath, 'utf8');
-    console.log('API: Alternatif dosya okundu, içerik uzunluğu:', fileContent.length);
-
-    // JSON olarak parse et (Removed unused jsonData variable)
-    // const jsonData = JSON.parse(fileContent);
-    // console.log('API: Alternatif JSON başarıyla işlendi');
-
-    // JSON yanıtı döndür (Return the raw file content directly)
-    return new NextResponse(fileContent, {
+    return NextResponse.json(result.rows, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-store, must-revalidate'
       }
     });
-  } catch (error: unknown) { // Changed 'any' to 'unknown'
-    console.error('API: Alternatif veri getirme hatası:', error);
-    let errorMessage = 'Veri getirilemedi.';
+  } catch (error: unknown) {
+    console.error('API: About verisi alınırken hata:', error);
+    let errorMessage = 'About verisi alınamadı.';
     if (error instanceof Error) {
-      errorMessage = `Veri getirilemedi: ${error.message}`;
+      errorMessage = `About verisi alınamadı: ${error.message}`;
     }
     return NextResponse.json(
       { error: errorMessage },

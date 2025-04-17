@@ -35,8 +35,7 @@ export default async function LangLayout({
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'tr';
   
-  // Admin sayfalarında WhatsApp butonunu göstermeyelim
-  const isAdminPage = false; // İleride admin sayfaları için bir kontrol ekleyebiliriz
+  // WhatsApp butonu artık kendi içinde admin kontrolü yapıyor
 
   return (
     <div className={inter.className + " bg-gray-50 text-gray-900"}>
@@ -45,7 +44,7 @@ export default async function LangLayout({
         <AnimatedLayout>
           {children}
         </AnimatedLayout>
-        {!isAdminPage && <WhatsAppButton language={lang} />}
+        <WhatsAppButton language={lang} />
         <Footer lang={lang} />
     </div>
   );

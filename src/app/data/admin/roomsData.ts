@@ -7,7 +7,8 @@ export interface RoomItem {
   nameEN: string;
   descriptionTR: string;
   descriptionEN: string;
-  image: string;
+  mainImageUrl?: string;
+  image?: string; // Geriye uyumluluk için
   priceTR: string;
   priceEN: string;
   capacity: number;
@@ -15,9 +16,11 @@ export interface RoomItem {
   featuresTR: string[];
   featuresEN: string[];
   gallery: string[];
-  type: string; // 'standard', 'triple', 'suite', 'apart' gibi
+  type: string;
+  roomTypeId?: string;
   active: boolean;
-  order: number;
+  orderNumber: number;
+  order?: number; // Geriye uyumluluk için
 }
 
 // Site tarafında kullanılacak oda arayüzü
@@ -75,7 +78,7 @@ const initialRoomData: RoomItem[] = [
     ],
     type: 'standard',
     active: true,
-    order: 1
+    orderNumber: 1
   },
   {
     id: 'triple-room',
@@ -114,7 +117,7 @@ const initialRoomData: RoomItem[] = [
     ],
     type: 'triple',
     active: true,
-    order: 2
+    orderNumber: 2
   },
   {
     id: 'suite-room',
@@ -159,7 +162,7 @@ const initialRoomData: RoomItem[] = [
     ],
     type: 'suite',
     active: true,
-    order: 3
+    orderNumber: 3
   },
   {
     id: 'apart-room',
@@ -198,7 +201,7 @@ const initialRoomData: RoomItem[] = [
     ],
     type: 'apart',
     active: true,
-    order: 4
+    orderNumber: 4
   }
 ];
 
@@ -263,7 +266,40 @@ const getRoomDataWithCache = async (): Promise<RoomItem[]> => {
 // Önbelleği temizle (veri güncellendiğinde çağrılır)
 const clearCache = () => {
   roomsCache = null;
+  console.log('[roomsData] Cache temizlendi! Bir sonraki istekte güncel veriler getirilecek.');
 };
+
+// Cache'i zorla temizleme fonksiyonu ekleyelim
+export async function forceClearAndFetchRooms() {
+  console.log('[roomsData] Cache zorla temizleniyor ve güncel veriler getiriliyor...');
+  roomsCache = undefined;
+  
+  try {
+    const response = await fetch('/api/rooms', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 }
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success) {
+        console.log('[roomsData] Veriler başarıyla güncellendi:', result.data.length + ' oda');
+        return { success: true, message: 'Veriler başarıyla güncellendi', data: result.data };
+      }
+    }
+    return { success: false, message: 'Veriler güncellenemedi' };
+  } catch (error) {
+    console.error('[roomsData] Cache temizleme ve veri yenileme hatası:', error);
+    return { success: false, message: 'Hata oluştu: ' + error.message };
+  }
+}
 
 // Oda verilerini dil seçeneğine göre siteye uygun formatta döndüren fonksiyon (Return type updated)
 export async function getRoomsData(lang: string): Promise<SiteRoom[]> {
@@ -292,7 +328,7 @@ export async function getRoomsData(lang: string): Promise<SiteRoom[]> {
         // Oda önceliğine göre sırala (Add type for r)
         const roomA = rooms.find((r: RoomItem) => r.id === a.id);
         const roomB = rooms.find((r: RoomItem) => r.id === b.id);
-        return (roomA?.order || 999) - (roomB?.order || 999);
+        return (roomA?.orderNumber || 999) - (roomB?.orderNumber || 999);
       });
   } catch (error) {
     console.error('getRoomsData hatası:', error);
@@ -330,13 +366,23 @@ export async function fetchRoomById(id: string): Promise<RoomItem | null> {
     const baseUrl = typeof window !== 'undefined' 
       ? window.location.origin 
       : 'http://localhost:3000';
-      
-    const response = await fetch(`${baseUrl}/api/rooms/${id}`, {
+    
+    // Timestamp ekleyerek cache'lemeyi önle
+    const timestamp = Date.now();
+    const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+    
+    console.log('API isteği:', url);
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
-      cache: 'no-store'
+      cache: 'no-store',
+      next: { revalidate: 0 }
     });
     
     if (!response.ok) {
@@ -360,26 +406,110 @@ export async function fetchRoomById(id: string): Promise<RoomItem | null> {
 // Site için ID'ye göre formatlanmış oda getiren fonksiyon (Return type updated)
 export async function getSiteRoomById(lang: string, id: string): Promise<SiteRoom | null> {
   try {
+    console.log(`getSiteRoomById çağrıldı: lang=${lang}, id=${id}`);
+    
+    // Direkt API'den çekmeyi deneyelim
+    try {
+      const baseUrl = getBaseUrl();
+      
+      // Timestamp ekleyerek cache'lemeyi önle
+      const timestamp = Date.now();
+      const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+      
+      console.log('API isteği:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          console.log('API\'den oda verisi başarıyla alındı:', data.data.id);
+          
+          // API'den gelen verileri SiteRoom formatına dönüştür
+          const room = data.data;
+          
+          // Features alanları dizi olduğundan emin ol
+          const features = lang === 'tr' 
+            ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+            : (Array.isArray(room.featuresEN) ? room.featuresEN : []);
+          
+          console.log(`Oda özellikleri (${lang})`, features);
+          
+          const siteRoom: SiteRoom = {
+            id: room.id,
+            name: lang === 'tr' ? room.nameTR : room.nameEN,
+            description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+            image: room.mainImageUrl || room.image,
+            price: lang === 'tr' ? room.priceTR : room.priceEN,
+            capacity: room.capacity,
+            size: room.size,
+            features: features, 
+            gallery: Array.isArray(room.gallery) ? room.gallery : [],
+            type: room.type
+          };
+          
+          console.log('SiteRoom formatına dönüştürüldü:', {
+            id: siteRoom.id,
+            name: siteRoom.name,
+            featuresCount: siteRoom.features.length,
+            galleryCount: siteRoom.gallery.length
+          });
+          
+          return siteRoom;
+        }
+      }
+      console.log('API\'den oda verisi alınamadı, önbellekten denenecek');
+    } catch (error) {
+      console.error('API isteği hatası:', error);
+    }
+    
+    // API çalışmazsa veya veri yoksa, önbellekten getir
     // Veri çek
     const room = await getRoomById(id);
     
     if (!room) {
+      console.log('Oda bulunamadı (cache):', id);
       return null;
     }
 
+    // Features alanları dizi olduğundan emin ol
+    const features = lang === 'tr' 
+      ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+      : (Array.isArray(room.featuresEN) ? room.featuresEN : []);
+    
+    console.log(`Oda özellikleri (${lang}, cache)`, features);
+    
     // Dile göre dönüştür (Use SiteRoom type)
     const siteRoom: SiteRoom = {
       id: room.id,
       name: lang === 'tr' ? room.nameTR : room.nameEN,
       description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-      image: room.image,
+      image: room.mainImageUrl || room.image,
       price: lang === 'tr' ? room.priceTR : room.priceEN,
       capacity: room.capacity,
       size: room.size,
-      features: lang === 'tr' ? room.featuresTR : room.featuresEN,
-      gallery: room.gallery || [], // Ensure gallery is always an array
+      features: features,
+      gallery: Array.isArray(room.gallery) ? room.gallery : [], // Ensure gallery is always an array
       type: room.type
     };
+    
+    console.log('SiteRoom formatına dönüştürüldü (cache):', {
+      id: siteRoom.id,
+      name: siteRoom.name,
+      featuresCount: siteRoom.features.length,
+      galleryCount: siteRoom.gallery.length
+    });
+    
     return siteRoom;
   } catch (error) {
     console.error('getSiteRoomById hatası:', error);
@@ -426,37 +556,43 @@ export async function addRoomItem(newItem: Omit<RoomItem, 'id'>): Promise<RoomIt
   }
 }
 
-// Odayı güncelleme
-export async function updateRoomItem(id: string, updatedData: Partial<RoomItem>): Promise<RoomItem | null> {
+/**
+ * Oda verisini günceller
+ * @param id Güncellenecek odanın ID'si
+ * @param updatedData Güncellenecek veriler
+ * @returns Güncelleme sonucu
+ */
+export const updateRoomItem = async (id: string, updatedData: Partial<RoomItem>): Promise<RoomItem | null> => {
   try {
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms/${id}`, {
+    console.log('UpdateRoomItem - Güncellenecek oda ID:', id);
+    console.log('UpdateRoomItem - Gönderilecek veri:', JSON.stringify(updatedData, null, 2));
+    
+    // API isteği - veriyi olduğu gibi gönder (page.tsx'te zaten formatlandı)
+    const response = await fetch(`/api/rooms/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(updatedData)
+      body: JSON.stringify(updatedData),
     });
-    
-    if (!response.ok) {
-      throw new Error(`Oda güncellenemedi: ${id}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.success) {
+
+    const result = await response.json();
+    console.log('UpdateRoomItem - API yanıtı:', result);
+
+    // Başarılı yanıt kontrolü
+    if (response.ok && result.success) {
       // Önbelleği temizle
       clearCache();
-      return data.data;
+      return result.data;
     } else {
-      console.error('API hatası:', data.message);
+      console.error('UpdateRoomItem - API başarısız:', result.message || 'Bilinmeyen hata');
       return null;
     }
   } catch (error) {
-    console.error('Oda güncelleme hatası:', error);
+    console.error('UpdateRoomItem - Hata:', error);
     return null;
   }
-}
+};
 
 // Odayı silme
 export async function deleteRoomItem(id: string): Promise<boolean> {
@@ -500,8 +636,9 @@ export async function toggleRoomVisibility(id: string): Promise<boolean> {
     }
     
     // Görünürlüğü değiştir
-    const updatedRoom = await updateRoomItem(id, {
-      active: !room.active
+    const updatedRoom = await updateRoomItem(id, { 
+      ...room, 
+      active: !room.active 
     });
     
     return !!updatedRoom;
@@ -575,13 +712,13 @@ export async function removeImageFromRoomGallery(id: string, imagePath: string):
 }
 
 // Odaların sırasını değiştirme
-export async function reorderRoomItems(newOrder: {id: string, order: number}[]): Promise<boolean> {
+export async function reorderRoomItems(newOrder: {id: string, orderNumber: number}[]): Promise<boolean> {
   try {
     // Tüm odaları getir
     const allRooms = await getAllRoomsData();
     
     // Yeni sırada olmayan odaları yüksek sıraya yerleştir
-    const highestOrder = Math.max(...newOrder.map(item => item.order));
+    const highestOrder = Math.max(...newOrder.map(item => item.orderNumber));
     
     // Her oda için güncelleme yap
     for (const room of allRooms) {
@@ -589,12 +726,12 @@ export async function reorderRoomItems(newOrder: {id: string, order: number}[]):
       
       if (orderItem) {
         // Sırası değişen odaları güncelle
-        if (room.order !== orderItem.order) {
-          await updateRoomItem(room.id, { order: orderItem.order });
+        if (room.orderNumber !== orderItem.orderNumber) {
+          await updateRoomItem(room.id, room);
         }
       } else {
         // Sırası belirtilmeyen odaları en sona koy
-        await updateRoomItem(room.id, { order: highestOrder + 1 });
+        await updateRoomItem(room.id, room);
       }
     }
     
@@ -610,6 +747,17 @@ export async function reorderRoomItems(newOrder: {id: string, order: number}[]):
 // Oda galerisini güncelleme
 export async function updateRoomGallery(id: string, galleryData: { image: string, gallery: string[] }): Promise<boolean> {
   try {
+    console.log('Galeri güncellenecek:', id, {
+      mainImageUrl: galleryData.image, 
+      galleryCount: galleryData.gallery.length
+    });
+    
+    // UUID ile galeri öğelerini formatlama
+    const formattedGallery = galleryData.gallery.map(imageUrl => ({
+      id: uuidv4(), // Her galeri öğesi için benzersiz ID
+      imageUrl
+    }));
+    
     const baseUrl = getBaseUrl();
     const response = await fetch(`${baseUrl}/api/rooms/gallery/${id}`, {
       method: 'PUT',
@@ -617,23 +765,25 @@ export async function updateRoomGallery(id: string, galleryData: { image: string
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        mainImage: galleryData.image,
-        gallery: galleryData.gallery
+        mainImageUrl: galleryData.image,
+        gallery: formattedGallery // Formatlı galeri gönder
       })
     });
     
+    const responseData = await response.json();
+    console.log('Galeri güncelleme yanıtı:', responseData);
+    
     if (!response.ok) {
-      throw new Error(`Galeri güncellenemedi: ${id}`);
+      console.error('API hatası:', response.status, responseData);
+      throw new Error(`Galeri güncellenemedi: ${id} - Hata: ${response.status} ${responseData.message || 'Bilinmeyen hata'}`);
     }
     
-    const data = await response.json();
-    
-    if (data.success) {
+    if (responseData.success) {
       // Önbelleği temizle
       clearCache();
       return true;
     } else {
-      console.error('API hatası:', data.message);
+      console.error('API hatası:', responseData.message);
       return false;
     }
   } catch (error) {

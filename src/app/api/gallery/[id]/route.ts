@@ -1,174 +1,129 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 import { notifyGalleryUpdated } from '../../websocket/route';
-import { GalleryItem } from '@/app/data/gallery'; // Import GalleryItem
 
-// Dosya yolu
-const galleryFilePath = path.join(process.cwd(), 'src/app/data/json/admin/galleryData.json');
+export const dynamic = 'force-dynamic';
 
-// JSON dosyasını okuma yardımcı fonksiyonu (Return type added)
-const readGalleryData = (): GalleryItem[] => {
-  try {
-    const fileData = fs.readFileSync(galleryFilePath, 'utf8');
-    // Cast the parsed data to GalleryItem[]
-    return JSON.parse(fileData) as GalleryItem[];
-  } catch (error) {
-    console.error('Galeri verisi okuma hatası:', error);
-    return [];
-  }
-};
-
-// JSON dosyasına yazma yardımcı fonksiyonu (Use GalleryItem type)
-const writeGalleryData = (data: GalleryItem[]) => {
-  try {
-    const jsonData = JSON.stringify(data, null, 2);
-    fs.writeFileSync(galleryFilePath, jsonData, 'utf8');
-    
-    // WebSocket bildirimi gönder
-    notifyGalleryUpdated();
-    
-    return true;
-  } catch (error) {
-    console.error('Galeri verisi yazma hatası:', error);
-    return false;
-  }
-};
-
-// GET - ID'ye göre galeri öğesi getir
+// GET: ID'ye göre galeri öğesi getir
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
-    const id = params.id;
-    const gallery: GalleryItem[] = readGalleryData(); // Add type annotation
-    // Add type for item in find callback
-    const item = gallery.find((item: GalleryItem) => item.id === id);
-
-    if (!item) {
+    const { id } = params;
+    
+    // Belirtilen ID'ye sahip galeri öğesini getir
+    const galleryItem = await prisma.gallery.findUnique({
+      where: { id },
+    });
+    
+    if (!galleryItem) {
       return NextResponse.json(
         { success: false, message: 'Galeri öğesi bulunamadı' },
         { status: 404 }
       );
     }
     
-    return NextResponse.json({ success: true, data: item });
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğesi başarıyla alındı',
+      item: galleryItem,
+    });
   } catch (error) {
-    console.error('Galeri öğesi çekme hatası:', error);
+    console.error('Galeri öğesi alınırken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Galeri öğesi alınamadı' },
+      {
+        success: false,
+        message: 'Galeri öğesi alınırken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
 }
 
-// PUT - ID'ye göre galeri öğesini güncelle
+// PUT: ID'ye göre galeri öğesi güncelle
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
-    const id = params.id;
+    const { id } = params;
     const body = await request.json();
-    const gallery: GalleryItem[] = readGalleryData(); // Add type annotation
-
-    // Add type for item in findIndex callback
-    const itemIndex = gallery.findIndex((item: GalleryItem) => item.id === id);
-
-    if (itemIndex === -1) {
-      return NextResponse.json(
-        { success: false, message: 'Galeri öğesi bulunamadı' },
-        { status: 404 }
-      );
-    }
     
-    // Mevcut öğeyi al
-    const existingItem = gallery[itemIndex];
-    
-    // Güncelleme
-    const updatedItem = {
-      ...existingItem,
-      ...body,
-      id: id // ID değiştirilmesin
+    // Güncellenecek verileri hazırla
+    const updateData = {
+      titleTR: body.titleTR,
+      titleEN: body.titleEN,
+      descriptionTR: body.descriptionTR,
+      descriptionEN: body.descriptionEN,
+      type: body.type,
     };
     
-    // Öğeyi güncelle
-    gallery[itemIndex] = updatedItem;
-    
-    // Verileri kaydet
-    const success = writeGalleryData(gallery);
-    
-    if (success) {
-      return NextResponse.json({
-        success: true,
-        data: updatedItem,
-        message: 'Galeri öğesi başarıyla güncellendi'
-      });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Galeri öğesi güncellenirken bir hata oluştu' },
-        { status: 500 }
-      );
+    // İsteğe bağlı alanları kontrol et
+    if (body.imageUrl) {
+      updateData['imageUrl'] = body.imageUrl;
     }
+    
+    if (body.videoUrl !== undefined) {
+      updateData['videoUrl'] = body.videoUrl;
+    }
+    
+    // Galeri öğesini güncelle
+    const updatedItem = await prisma.gallery.update({
+      where: { id },
+      data: updateData,
+    });
+    
+    // Bildirim gönder
+    notifyGalleryUpdated();
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğesi başarıyla güncellendi',
+      item: updatedItem,
+    });
   } catch (error) {
-    console.error('Galeri öğesi güncelleme hatası:', error);
+    console.error('Galeri öğesi güncellenirken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Galeri öğesi güncellenirken bir hata oluştu' },
+      {
+        success: false,
+        message: 'Galeri öğesi güncellenirken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
 }
 
-// DELETE - ID'ye göre galeri öğesini sil
+// DELETE: ID'ye göre galeri öğesi sil
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // params nesnesini varsayalım
-    const id = params.id;
-    const gallery: GalleryItem[] = readGalleryData(); // Add type annotation
-    // Add type for item in findIndex callback
-    const itemIndex = gallery.findIndex((item: GalleryItem) => item.id === id);
-
-    if (itemIndex === -1) {
-      return NextResponse.json(
-        { success: false, message: 'Galeri öğesi bulunamadı' },
-        { status: 404 }
-      );
-    }
+    const { id } = params;
     
-    // Öğeyi sil
-    const deletedItem = gallery.splice(itemIndex, 1)[0];
-
-    // Kalan öğelerin sırasını güncelle (Add type for item)
-    const updatedGallery = gallery.map((item: GalleryItem, index: number) => ({
-      ...item,
-      order: index + 1 // Note: Order starts from 1, not 0? Check consistency.
-    }));
-
-    // Verileri kaydet
-    const success = writeGalleryData(updatedGallery);
+    // Belirtilen ID'ye sahip galeri öğesini sil
+    await prisma.gallery.delete({
+      where: { id },
+    });
     
-    if (success) {
-      return NextResponse.json({
-        success: true,
-        data: deletedItem,
-        message: 'Galeri öğesi başarıyla silindi'
-      });
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'Galeri öğesi silinirken bir hata oluştu' },
-        { status: 500 }
-      );
-    }
+    // Bildirim gönder
+    notifyGalleryUpdated();
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Galeri öğesi başarıyla silindi',
+    });
   } catch (error) {
-    console.error('Galeri öğesi silme hatası:', error);
+    console.error('Galeri öğesi silinirken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Galeri öğesi silinirken bir hata oluştu' },
+      {
+        success: false,
+        message: 'Galeri öğesi silinirken bir hata oluştu',
+        error: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
