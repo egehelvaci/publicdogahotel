@@ -20,7 +20,7 @@ interface VideoProps {
 }
 
 // Video bileşeni - Tebi.io servisine uygun
-const TebiVideo: React.FC<VideoProps> = ({ 
+export const TebiVideo: React.FC<VideoProps> = ({ 
   src, 
   alt = "Video",
   width, 
@@ -49,8 +49,6 @@ const TebiVideo: React.FC<VideoProps> = ({
     </video>
   );
 };
-
-export default TebiVideo;
 
 interface ImageKitVideoProps {
   src: string;
