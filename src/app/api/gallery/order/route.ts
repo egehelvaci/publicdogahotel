@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 // updateGalleryItemsOrder fonksiyonu olmadığı için admin/galleryData'dan reorderGalleryItems fonksiyonunu kullanacağız
-import { reorderGalleryItems } from '@/app/data/admin/galleryData';
+import { reorderGalleryItems } from '../../../../app/data/admin/galleryData';
 import { revalidatePath } from 'next/cache';
 
 // Galeri öğelerinin sırasını güncelle

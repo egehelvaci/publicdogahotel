@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadToTebi } from '@/lib/tebi';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../../../../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 // Yüklenebilecek maksimum dosya boyutu (10MB)

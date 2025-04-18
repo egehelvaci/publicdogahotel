@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
-import { executeQuery } from '@/lib/db';
-import { prisma } from '@/lib/prisma';
+import { executeQuery } from '../../../lib/db';
+import { uploadToTebi } from '../../../lib/tebi';
 
 // Galeri öğesi arayüzü
 export interface GalleryItem {
@@ -30,20 +30,21 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || undefined;
     
     // Filtreleme koşulları
-    const where = type ? { type } : undefined;
+    const whereClause = type ? `WHERE type = '${type}'` : '';
     
     // Tüm galeri öğelerini getir (filtreleme koşulları varsa uygula)
-    const galleryItems = await prisma.gallery.findMany({
-      where,
-      orderBy: {
-        orderNumber: 'asc',
-      },
-    });
+    const query = `
+      SELECT * FROM gallery
+      ${whereClause}
+      ORDER BY order_number ASC
+    `;
+    
+    const result = await executeQuery(query) as any;
     
     return NextResponse.json({
       success: true,
       message: 'Galeri öğeleri başarıyla alındı',
-      items: galleryItems,
+      items: result.rows,
     });
   } catch (error) {
     console.error('Galeri öğeleri alınırken hata:', error);

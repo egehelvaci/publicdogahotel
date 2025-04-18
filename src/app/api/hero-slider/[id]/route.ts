@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../../lib/db';
 
 // GET - Belirli bir slider öğesini getir
 export async function GET(

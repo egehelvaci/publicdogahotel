@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaUpload, FaSave, FaYoutube, FaPlay, FaVideo } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import { GalleryItem } from '@/app/data/gallery';
-import VideoThumbGenerator from '@/app/components/VideoThumbGenerator';
+import { GalleryItem } from '../../data/gallery';
+import VideoThumbGenerator from '../../components/VideoThumbGenerator';
 
 interface GalleryFormProps {
   initialData?: GalleryItem;

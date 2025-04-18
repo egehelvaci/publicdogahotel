@@ -2,8 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { FaImage, FaBed, FaPhotoVideo, FaNewspaper, FaUtensils, FaInfoCircle } from 'react-icons/fa';
-import AdminLayout from '@/app/components/AdminLayout';
+import { FaHome, FaList, FaImage, FaBed, FaBookmark, FaUser, FaServer, FaInfoCircle } from 'react-icons/fa';
+import { FaUtensils } from 'react-icons/fa';
+import AdminLayout from '../../components/AdminLayout';
 
 interface AdminPageProps {
   params: Promise<{ lang: string }>;
@@ -48,7 +49,7 @@ export default function AdminPage({ params }: AdminPageProps) {
       description: lang === 'tr' 
         ? 'Galeri görsellerini ekleyin, düzenleyin ve sıralayın.' 
         : 'Add, edit and order gallery images.',
-      icon: <FaPhotoVideo className="w-8 h-8 text-teal-600" />,
+      icon: <FaImage className="w-8 h-8 text-teal-600" />,
       url: `/${lang}/admin/gallery`
     },
     {

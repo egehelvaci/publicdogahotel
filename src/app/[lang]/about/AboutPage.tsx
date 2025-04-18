@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FaArrowRight, FaStar, FaSwimmingPool, FaUtensils, FaBed, FaHotel } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { AboutData } from '@/app/data/about';
+import { AboutData } from '../../../app/data/about';
 
 interface AboutPageProps {
   lang: string;

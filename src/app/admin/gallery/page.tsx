@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-// Removed direct import: import { getAllGalleryItems, GalleryItem } from '@/app/data/gallery';
-import { GalleryItem } from '@/app/data/gallery'; // Keep type import if needed elsewhere or define locally
+// import { getAllGalleryItems, GalleryItem } from '../../data/gallery';
+import { GalleryItem } from '../../data/gallery'; // Keep type import if needed elsewhere or define locally
 import Image from 'next/image';
 import { FaTrash, FaEdit, FaArrowUp, FaArrowDown, FaPlus } from 'react-icons/fa';
 import toast from 'react-hot-toast';

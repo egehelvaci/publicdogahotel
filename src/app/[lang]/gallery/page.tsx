@@ -1,6 +1,6 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { getDictionary } from '@/app/dictionaries';
+import { getDictionary } from '../../../app/dictionaries';
 import GalleryPage from './GalleryPage';
 
 export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
 // Veritabanı sorgu sonucu tipi
