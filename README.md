@@ -1,6 +1,6 @@
-# Doğa Hotel Fethiye
+# Doğa Hotel Ölüdeniz
 
-Fethiye'de bulunan Doğa Hotel'in resmi web sitesi.
+Ölüdeniz'de bulunan Doğa Hotel'in resmi web sitesi.
 
 ## Teknolojiler
 
@@ -26,7 +26,10 @@ TEBI_MASTER_KEY=mcjtH1bhF2mnIke7VB2MVuQnk5YaJdbTCisd7xhk
 NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=public_pN6cJbvfbzQHZXcDYBNQGZa10JM=
 ```
 
-4. Build ayarları otomatik olarak vercel.json dosyasından alınacaktır
+4. Build ayarları:
+   - Build Command: `npm install --legacy-peer-deps && next build`
+   - Install Command: `npm install --legacy-peer-deps`
+
 5. Deploy işlemini başlatın
 
 ## Geliştirme
@@ -50,4 +53,4 @@ npm run start
 ## Notlar
 
 - TypeScript ve ESLint hataları derleme sırasında göz ardı edilir (next.config.js içinde yapılandırıldı)
-- Vercel üzerinde otomatik olarak CI/CD pipeline'ı oluşturulacaktır 
+- Vercel üzerinde otomatik olarak CI/CD pipeline'ı oluşturulacaktır
