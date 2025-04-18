@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import MediaUploader from '@/components/ui/MediaUploader';
-import ImageKitImage from '@/components/ui/ImageKitImage';
-import ImageKitVideo from '@/components/ui/ImageKitVideo';
+import MediaUploader from '../../../components/ui/MediaUploader';
+import ImageKitImage from '../../../components/ui/ImageKitImage';
+import ImageKitVideo from '../../../components/ui/ImageKitVideo';
 
 interface UploadResult {
   url: string;

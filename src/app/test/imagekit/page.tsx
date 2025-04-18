@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { Button, Input, Form, Card, Select, Divider } from 'antd';
-import ImageKitImage from '@/components/ui/ImageKitImage';
-import ImageKitVideo from '@/components/ui/ImageKitVideo';
+import ImageKitImage from '../../../components/ui/ImageKitImage';
+import ImageKitVideo from '../../../components/ui/ImageKitVideo';
 
 const { Option } = Select;
 
