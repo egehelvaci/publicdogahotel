@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { FaEdit, FaTrashAlt, FaPlus, FaArrowUp, FaArrowDown, FaGripLines, FaImage, FaVideo, FaSpinner, FaCheck, FaTimes } from 'react-icons/fa';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MediaUploader from '../../../../components/ui/MediaUploader';
-import AdminLayout from '@/app/components/AdminLayout';
+import AdminLayout from "@/app/components/AdminLayout";
 
 interface GalleryItem {
   id: string;

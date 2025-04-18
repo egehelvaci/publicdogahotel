@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { FaArrowLeft, FaSave } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import AdminHeader from '@/app/components/admin/AdminHeader';
-import { addSliderItem, SliderItem } from '@/app/data/admin/sliderData';
+import { addSlider } from '@/app/data/admin/sliderData';
 import MediaUploader from '@/components/ui/MediaUploader';
 import ImageKitImage from '@/components/ui/ImageKitImage';
 import ImageKitVideo from '@/components/ui/ImageKitVideo';
@@ -110,7 +110,7 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
         active: formData.active
       };
 
-      const result = await addSliderItem(payload);
+      const result = await addSlider(payload);
 
       // API yanıtını kontrol et
       console.log('Slider ekleme API yanıtı:', result);
