@@ -3,14 +3,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FaEdit, FaTrashAlt, FaEye, FaPlus, FaGripVertical, FaArrowUp, FaArrowDown, FaSave, FaArrowLeft } from 'react-icons/fa';
+import { FaEdit, FaTrashAlt, FaEye, FaPlus, FaGripVertical, FaArrowUp, FaArrowDown, FaSave, FaArrowLeft, FaGripLines, FaImage, FaVideo, FaTimes } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import { toast } from 'react-hot-toast';
-import { getAllSliderData, deleteSliderItem, reorderSliderItems, SliderItem } from '@/app/data/admin/sliderData';
-import ImageKitImage from '@/components/ui/ImageKitImage';
-import ImageKitVideo from '@/components/ui/ImageKitVideo';
-import Modal from '@/components/ui/Modal';
-import AdminLayout from '@/app/components/AdminLayout';
+import { getAllSliderData, deleteSliderItem, reorderSliderItems, SliderItem } from '../../../data/admin/sliderData';
+import ImageKitImage from '../../../../components/ui/ImageKitImage';
+import ImageKitVideo from '../../../../components/ui/ImageKitVideo';
+import Modal from '../../../../components/ui/Modal';
+import AdminLayout from '../../../components/AdminLayout';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 interface HeroSliderPageProps {
   params: {
