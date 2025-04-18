@@ -19,7 +19,7 @@ import {
   reorderRoomItems
 } from '../../../data/admin/roomsData';
 import useSocketNotifications from './useSocketNotifications';
-import AdminLayout from '@/app/components/AdminLayout';
+import AdminLayout from '../../../components/AdminLayout';
 
 interface AdminRoomsPageProps {
   params: {

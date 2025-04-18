@@ -7,7 +7,7 @@ import { GalleryItem } from '@/app/data/gallery'; // Keep type import if needed 
 import Image from 'next/image';
 import { FaTrash, FaEdit, FaArrowUp, FaArrowDown, FaPlus } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import AdminHeader from '@/app/components/admin/AdminHeader';
+import AdminHeader from '../../components/admin/AdminHeader';
 
 export default function GalleryAdminPage() {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);

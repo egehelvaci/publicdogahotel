@@ -6,8 +6,8 @@ import Image from 'next/image';
 import { FaArrowRight, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { getSliderData, SliderItem } from '../data/admin/sliderData';
-import ImageKitImage from '@/components/ui/ImageKitImage';
-import ImageKitVideo from '@/components/ui/ImageKitVideo';
+import ImageKitImage from '../../components/ui/ImageKitImage';
+import ImageKitVideo from '../../components/ui/ImageKitVideo';
 
 type HeroSliderProps = {
   language: string;
