@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 
+// Veritabanı sorgu sonucu tipi
+interface QueryResult<T> {
+  rows: T[];
+  rowCount: number;
+  client?: DbClient;
+}
+
+// Veritabanı istemci tipi
+interface DbClient {
+  query: (query: string, params?: unknown[]) => Promise<any>;
+  release: () => void;
+}
+
 // POST - Slider öğelerinin sırasını değiştir
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +38,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Transaction başlat
-    const client = await (await executeQuery('BEGIN') as any).client;
+    const beginResult = await executeQuery('BEGIN') as any;
+    const client = beginResult.client as DbClient;
     
     try {
       // Her bir öğenin sırasını güncelle

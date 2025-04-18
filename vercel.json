@@ -1,0 +1,16 @@
+{
+  "buildCommand": "next build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "outputDirectory": ".next",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/" }
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "TEBI_BUCKET": "@tebi_bucket",
+    "TEBI_API_KEY": "@tebi_api_key",
+    "TEBI_MASTER_KEY": "@tebi_master_key",
+    "NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY": "@imagekit_public_key"
+  }
+} 

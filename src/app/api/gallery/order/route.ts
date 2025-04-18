@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateGalleryItemsOrder } from '@/app/data/gallery';
+// updateGalleryItemsOrder fonksiyonu olmadığı için admin/galleryData'dan reorderGalleryItems fonksiyonunu kullanacağız
+import { reorderGalleryItems } from '@/app/data/admin/galleryData';
 import { revalidatePath } from 'next/cache';
 
 // Galeri öğelerinin sırasını güncelle
@@ -14,9 +15,16 @@ export async function PUT(req: NextRequest) {
       );
     }
     
-    const updatedItems = await updateGalleryItemsOrder(data.ids);
+    // ids dizisini {id: string, order: number} formatına dönüştür
+    const items = data.ids.map((id: string, index: number) => ({
+      id,
+      order: index
+    }));
     
-    if (!updatedItems) {
+    // reorderGalleryItems fonksiyonunu kullan
+    const success = await reorderGalleryItems(items);
+    
+    if (!success) {
       return NextResponse.json(
         { error: 'Galeri öğelerinin sırası güncellenirken bir hata oluştu' },
         { status: 500 }
@@ -27,7 +35,7 @@ export async function PUT(req: NextRequest) {
     revalidatePath('/gallery');
     revalidatePath('/admin/gallery');
     
-    return NextResponse.json({ success: true, items: updatedItems });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Galeri öğelerinin sırası güncellenirken hata oluştu:', error);
     return NextResponse.json(

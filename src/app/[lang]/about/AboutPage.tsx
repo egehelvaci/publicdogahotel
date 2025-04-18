@@ -81,33 +81,114 @@ export default function AboutPage({ lang, staticData }: AboutPageProps) {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative bg-gray-800 py-24" style={{paddingTop: "7rem"}}>
-        <div className="absolute inset-0 overflow-hidden z-0">
-          <Image 
-            src={aboutData.heroImage}
-            alt={title}
-            fill
-            style={{ objectFit: 'cover' }}
-            className="opacity-60"
+      {/* Hero Section - Resimsiz Tasarım */}
+      <section className="relative w-full bg-gradient-to-br from-amber-600 via-amber-500 to-amber-700 h-[40vh] sm:h-[45vh] md:h-[55vh] min-h-[350px] md:min-h-[450px] overflow-hidden">
+        {/* Animasyonlu arka plan desenleri */}
+        <div className="absolute inset-0 w-full h-full">
+          <motion.div 
+            className="absolute right-0 top-0 w-64 md:w-96 h-64 md:h-96 rounded-full bg-amber-400/20 blur-3xl"
+            animate={{ 
+              x: [0, 20, 0],
+              y: [0, -20, 0],
+              scale: [1, 1.2, 1]
+            }}
+            transition={{ 
+              duration: 15,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-amber-900/50 to-slate-900/70"></div>
+          <motion.div 
+            className="absolute left-0 bottom-0 w-64 md:w-96 h-64 md:h-96 rounded-full bg-amber-800/20 blur-3xl"
+            animate={{ 
+              x: [0, -20, 0],
+              y: [0, 20, 0],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ 
+              duration: 12,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
+          <motion.div 
+            className="absolute left-1/2 top-1/3 transform -translate-x-1/2 w-48 md:w-64 h-48 md:h-64 rounded-full bg-white/10 blur-3xl"
+            animate={{ 
+              scale: [1, 1.3, 1]
+            }}
+            transition={{ 
+              duration: 8,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
         </div>
         
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 drop-shadow-md">
-            {language === 'tr' ? 'Hakkımızda' : 'About Us'}
-          </h1>
-          <p className="text-xl text-gray-200 max-w-3xl mx-auto drop-shadow-sm">
-            {subtitle}
-          </p>
+        {/* Dekoratif şekiller */}
+        <div className="absolute inset-0 overflow-hidden opacity-10">
+          <div className="absolute -top-20 -right-20 w-96 h-96 border-8 border-white/20 rounded-full"></div>
+          <div className="absolute -bottom-40 -left-20 w-[40rem] h-[40rem] border-8 border-white/20 rounded-full"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] border-2 border-white/30 rounded-full"></div>
+        </div>
+        
+        {/* İnce çizgi desenleri */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-0 w-full h-8 bg-white/20"></div>
+          <div className="absolute bottom-0 left-0 w-full h-8 bg-white/20"></div>
+          <div className="absolute top-1/3 left-0 w-full h-px bg-white/30"></div>
+          <div className="absolute top-2/3 left-0 w-full h-px bg-white/30"></div>
+        </div>
+        
+        {/* İçerik */}
+        <div className="container mx-auto px-4 h-full flex items-center justify-center relative z-10">
+          <div className="text-center relative">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+            >
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white mb-4 sm:mb-8 drop-shadow-lg tracking-wider">
+                {language === 'tr' ? 'Hakkımızda' : 'About Us'}
+              </h1>
+              <div className="w-16 sm:w-24 h-1 bg-white mx-auto mb-6 md:mb-10 rounded-full"></div>
+              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-white/90 max-w-3xl mx-auto leading-relaxed font-light drop-shadow-md px-2">
+                {subtitle}
+              </p>
+              
+              <div className="mt-8 md:mt-12 flex flex-wrap justify-center gap-3 md:gap-4">
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-5 sm:px-8 py-3 sm:py-4 text-white"
+                >
+                  <span className="block text-2xl sm:text-3xl md:text-4xl font-bold">58</span>
+                  <span className="text-xs sm:text-sm uppercase tracking-wider">{language === 'tr' ? 'Konforlu Oda' : 'Comfortable Rooms'}</span>
+                </motion.div>
+                
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-5 sm:px-8 py-3 sm:py-4 text-white"
+                >
+                  <span className="block text-2xl sm:text-3xl md:text-4xl font-bold">2</span>
+                  <span className="text-xs sm:text-sm uppercase tracking-wider">{language === 'tr' ? 'Yüzme Havuzu' : 'Swimming Pools'}</span>
+                </motion.div>
+                
+                <motion.div
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg px-5 sm:px-8 py-3 sm:py-4 text-white"
+                >
+                  <span className="block text-2xl sm:text-3xl md:text-4xl font-bold">1</span>
+                  <span className="text-xs sm:text-sm uppercase tracking-wider">{language === 'tr' ? 'Restaurant & Cafe' : 'Restaurant & Cafe'}</span>
+                </motion.div>
+              </div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
       {/* Hotel Story */}
-      <section className="py-20">
+      <section className="py-12 md:py-20">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-12 items-center">
+          <div className="flex flex-col lg:flex-row gap-8 md:gap-12 items-center">
             <div className="lg:w-1/2">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -115,7 +196,7 @@ export default function AboutPage({ lang, staticData }: AboutPageProps) {
                 transition={{ duration: 0.7 }}
                 viewport={{ once: true }}
               >
-                <h2 className="text-3xl font-bold mb-6 text-amber-700">
+                <h2 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-amber-700">
                   {title}
                 </h2>
                 {content.map((paragraph, index) => (
@@ -138,16 +219,20 @@ export default function AboutPage({ lang, staticData }: AboutPageProps) {
                 whileInView={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.7 }}
                 viewport={{ once: true }}
-                className="relative h-[500px] overflow-hidden rounded-lg shadow-xl"
+                className="relative w-full rounded-lg shadow-xl overflow-hidden bg-white"
               >
-                <Image 
-                  src={aboutData.mainImage}
-                  alt={title}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  className="rounded-lg hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-6">
+                <div className="w-full aspect-auto flex justify-center items-center">
+                  <Image 
+                    src={aboutData.mainImage}
+                    alt={title}
+                    width={800}
+                    height={600}
+                    priority
+                    quality={90}
+                    className="w-auto h-auto max-w-full max-h-[600px] rounded-lg hover:scale-105 transition-transform duration-700 m-auto"
+                  />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-6">
                   <h3 className="text-white text-xl font-bold">
                     {language === 'tr' ? 'Yeşil & Mavi\'nin Buluşma Noktası' : 'Where Green & Blue Meet'}
                   </h3>

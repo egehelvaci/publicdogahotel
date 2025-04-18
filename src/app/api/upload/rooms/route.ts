@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { uploadToImageKit } from '@/lib/imagekitServer';
-import { prisma } from '@/lib/db';
+import { prisma } from '@/lib/prisma';
 
 // API'yi /api/upload/rooms yolunda kullanılabilir hale getir
 export const dynamic = 'force-dynamic';

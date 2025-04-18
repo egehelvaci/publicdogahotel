@@ -28,11 +28,12 @@ model AboutSection {
   contentTR  String   @map("content_tr")
   contentEN  String   @map("content_en")
   imageUrl   String?  @map("image_url")
-  videoUrl   String?  @map("video_url")
   position   Int      @default(0)
   showOnHome Boolean  @default(true) @map("show_on_home")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
+  badges_en  String   @default("")
+  badges_tr  String   @default("")
 
   @@map("about_sections")
 }
@@ -45,7 +46,7 @@ model Slider {
   subtitleEN    String?  @map("subtitle_en")
   descriptionTR String?  @map("description_tr")
   descriptionEN String?  @map("description_en")
-  imageUrl      String   @map("image_url")
+  imageUrl      String?  @map("image_url")
   videoUrl      String?  @map("video_url")
   orderNumber   Int      @default(0) @map("order_number")
   active        Boolean  @default(true)
@@ -72,20 +73,20 @@ model Gallery {
 }
 
 model Service {
-  id            String           @id @default(uuid())
-  titleTR       String           @map("title_tr")
-  titleEN       String           @map("title_en")
-  descriptionTR String           @map("description_tr")
-  descriptionEN String           @map("description_en")
-  detailsTR     String[]         @map("details_tr")
-  detailsEN     String[]         @map("details_en")
-  imageUrl      String?          @map("image_url")
-  icon          String?
-  orderNumber   Int              @default(0) @map("order_number")
-  active        Boolean          @default(true)
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
-  gallery       ServiceGallery[]
+  id             String           @id @default(uuid())
+  titleTR        String           @map("title_tr")
+  titleEN        String           @map("title_en")
+  descriptionTR  String           @map("description_tr")
+  descriptionEN  String           @map("description_en")
+  detailsTR      String[]         @map("details_tr")
+  detailsEN      String[]         @map("details_en")
+  main_image_url String?
+  icon           String?
+  orderNumber    Int              @default(0) @map("order_number")
+  active         Boolean          @default(true)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  gallery        ServiceGallery[]
 
   @@map("services")
 }
@@ -115,9 +116,9 @@ model Room {
   type          String        @default("standard")
   roomTypeId    String?       @map("room_type_id")
   active        Boolean       @default(true)
-  orderNumber   Int           @default(0) @map("order_number")
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
+  orderNumber   Int           @default(0) @map("order_number")
   priceEN       String        @map("price_en")
   priceTR       String        @map("price_tr")
   gallery       RoomGallery[]
@@ -130,8 +131,8 @@ model RoomGallery {
   id          String   @id @default(uuid())
   roomId      String   @map("room_id")
   imageUrl    String   @map("image_url")
-  orderNumber Int      @default(0) @map("order_number")
   createdAt   DateTime @default(now()) @map("created_at")
+  orderNumber Int      @default(0) @map("order_number")
   room        Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@map("room_gallery")

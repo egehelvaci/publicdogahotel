@@ -6,17 +6,15 @@ export const runtime = 'nodejs';
 // Revalidate etiketi - her istekte yeni veri al
 export const revalidate = 0;
 
-type PageProps = {
+interface PageProps {
   params: {
     lang: string;
   };
-};
+  searchParams?: Record<string, string | string[]>;
+}
 
-// Next.js 15'te, params'a erişim için önce params nesnesini await etmeliyiz
 export default async function Page({ params }: PageProps) {
-  // Önce tüm params nesnesini await et
-  const resolvedParams = await params;
-  const lang = resolvedParams.lang || 'tr';
+  const lang = params.lang || 'tr';
   
   return <HomePage lang={lang} />;
 } 

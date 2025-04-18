@@ -5,7 +5,7 @@ import { executeQuery } from '@/lib/db';
 import { prisma } from '@/lib/prisma';
 
 // Galeri öğesi arayüzü
-interface GalleryItem {
+export interface GalleryItem {
   id: string;
   image?: string;
   image_url?: string;
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     // Mevcut sıra numaralarını kontrol et
     const orderResult = await executeQuery(`
       SELECT COALESCE(MAX(order_number), 0) + 1 as next_order FROM gallery
-    `);
+    `) as any;
     
     const nextOrder = body.order !== undefined ? body.order : 
                      (orderResult.rows && orderResult.rows[0] ? orderResult.rows[0].next_order : 1);
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       body.description_en || '',
       nextOrder,
       body.type || itemType
-    ]);
+    ]) as any;
     
     if (!insertResult || !insertResult.rows || insertResult.rows.length === 0) {
       throw new Error('Galeri öğesi eklenemedi');
@@ -177,7 +177,7 @@ export async function DELETE(req: NextRequest) {
     
     // Silinecek öğeyi kontrol et
     const checkQuery = `SELECT * FROM gallery WHERE id = $1`;
-    const checkResult = await executeQuery(checkQuery, [id]);
+    const checkResult = await executeQuery(checkQuery, [id]) as any;
     
     if (!checkResult.rows || checkResult.rows.length === 0) {
       return NextResponse.json(
@@ -188,7 +188,7 @@ export async function DELETE(req: NextRequest) {
     
     // Öğeyi sil
     const deleteQuery = `DELETE FROM gallery WHERE id = $1 RETURNING *`;
-    const deleteResult = await executeQuery(deleteQuery, [id]);
+    const deleteResult = await executeQuery(deleteQuery, [id]) as any;
     
     if (!deleteResult.rows || deleteResult.rows.length === 0) {
       throw new Error('Galeri öğesi silinemedi');

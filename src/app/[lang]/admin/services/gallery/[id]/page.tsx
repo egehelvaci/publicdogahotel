@@ -33,41 +33,47 @@ export default function ServiceGalleryPage({ params }: PageProps) {
   const fetchServiceData = async () => {
     try {
       setLoading(true);
-      // API'den doğrudan alım yapalım, önbelleği tamamen atlayarak
-      const timestamp = Date.now();
-      const baseUrl = window.location.origin;
       
-      const response = await fetch(`${baseUrl}/api/admin/services/${id}?t=${timestamp}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        cache: 'no-store'
-      });
+      const response = await fetch(`/api/admin/services/${id}?t=${Date.now()}`);
       
       if (!response.ok) {
-        throw new Error(lang === 'tr' ? 'Hizmet bulunamadı' : 'Service not found');
+        throw new Error(lang === 'tr' ? 'Servis verisi alınamadı' : 'Failed to fetch service data');
       }
       
       const data = await response.json();
       
-      if (!data.success || !data.item) {
-        throw new Error(lang === 'tr' ? 'Hizmet bulunamadı' : 'Service not found');
+      if (!data.success) {
+        throw new Error(data.message || (lang === 'tr' ? 'Servis verisi alınamadı' : 'Failed to fetch service data'));
       }
       
-      const service = data.item;
-      setServiceName(lang === 'tr' ? service.titleTR : service.titleEN);
-      setImages(service.images || []);
+      console.log("Alınan servis verisi:", data.item);
       
-    } catch (err: any) {
+      // mainImageUrl değerini özellikle kontrol et
+      if (data.item && data.item.mainImageUrl) {
+        console.log("Ana görsel URL: ", data.item.mainImageUrl);
+      } else {
+        console.log("Ana görsel URL bulunamadı!");
+      }
+      
+      // Servis adını state'e ata
+      if (data.item) {
+        setServiceName(lang === 'tr' ? data.item.titleTR : data.item.titleEN);
+        
+        // Galeri görsellerini images state'ine ata
+        if (Array.isArray(data.item.gallery)) {
+          setImages(data.item.gallery);
+        } else {
+          setImages([]);
+        }
+      }
+    } catch (error) {
+      console.error('Servis verisi getirilirken hata:', error);
       setMessage({
-        text: err.message || 'Hizmet verileri yüklenemedi',
+        text: lang === 'tr' 
+          ? `Servis verisi yüklenirken hata oluştu: ${error instanceof Error ? error.message : String(error)}` 
+          : `Error loading service data: ${error instanceof Error ? error.message : String(error)}`,
         type: 'error'
       });
-      console.error('Hizmet verileri yükleme hatası:', err);
     } finally {
       setLoading(false);
     }
@@ -75,6 +81,8 @@ export default function ServiceGalleryPage({ params }: PageProps) {
 
   // Sayfa yükleme
   useEffect(() => {
+    // React.use sonrası id ve lang değerlerinin değişmeyeceğini biliyoruz, 
+    // bu useEffect'i sadece bir kez çalıştır
     fetchServiceData();
     
     // Sayfa görünür olduğunda verileri yenile
@@ -87,15 +95,12 @@ export default function ServiceGalleryPage({ params }: PageProps) {
     // Görünürlük değişikliklerini dinle (kullanıcı sekmeye geri döndüğünde)
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Düzenli aralıklarla verileri yenileme - localStorage yerine tamamen sunucu odaklı yaklaşım
-    const intervalId = setInterval(fetchServiceData, 15000); // 15 saniyede bir
-    
     // Cleanup
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(intervalId);
     };
-  }, [id, lang]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Boş dependency array, sadece bir kez çalışacak
 
   // Dosya yükleme
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,30 +110,55 @@ export default function ServiceGalleryPage({ params }: PageProps) {
     setUploading(true);
     setMessage(null);
 
+    // Mevcut görselleri sakla
+    const currentImages = [...images];
+    const newImages: string[] = [];
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('folder', 'services');
         
-        const response = await fetch('/api/admin/upload', {
+        console.log(`Dosya yükleniyor: ${file.name} (${file.size} bytes, ${file.type})`);
+        
+        // Servis galerisine özel upload endpoint'ini kullan
+        const response = await fetch(`/api/admin/services/${id}/gallery/upload`, {
           method: 'POST',
           body: formData,
         });
         
         if (!response.ok) {
-          throw new Error(lang === 'tr' ? 'Dosya yüklenemedi' : 'File upload failed');
+          const errorText = await response.text();
+          console.error('Yükleme API yanıtı başarısız:', response.status, errorText);
+          throw new Error(`Yükleme hatası: ${errorText}`);
         }
         
-        const data = await response.json();
+        const responseData = await response.json();
         
-        if (data.success) {
-          // Yeni görsel yolunu ekle
-          setImages(prev => [...prev, data.filePath]);
+        if (!responseData.success) {
+          throw new Error(responseData.error || responseData.message || 'Dosya yüklenemedi');
         }
+        
+        // URL'yi al
+        const imageUrl = responseData.url || responseData.filePath || '';
+        
+        if (!imageUrl) {
+          throw new Error('Yükleme başarılı fakat resim URL bulunamadı');
+        }
+        
+        console.log('Yüklenen dosya:', {
+          url: imageUrl,
+          galleryItem: responseData.galleryItem
+        });
+        
+        // Yeni görsel yolunu ekle
+        newImages.push(imageUrl);
       }
+      
+      // Yeni görselleri mevcut görsellerle birleştir
+      setImages([...currentImages, ...newImages]);
       
       setMessage({
         text: lang === 'tr' ? 'Görsel(ler) başarıyla yüklendi' : 'Image(s) uploaded successfully',
@@ -139,12 +169,22 @@ export default function ServiceGalleryPage({ params }: PageProps) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
+      // Yükleme sonrası sayfa verilerini bir kez daha çek
+      if (newImages.length > 0) {
+        setTimeout(() => {
+          fetchServiceData();
+        }, 500);
+      }
     } catch (error: any) {
       console.error('Dosya yükleme hatası:', error);
       setMessage({
         text: error.message || 'Dosya yüklenirken bir hata oluştu',
         type: 'error'
       });
+      
+      // Hata durumunda, mevcut görsellere geri dön
+      setImages(currentImages);
     } finally {
       setUploading(false);
     }
@@ -154,60 +194,71 @@ export default function ServiceGalleryPage({ params }: PageProps) {
   const removeImage = (image: string) => {
     // Görseli listeden kaldır
     setImages(prev => prev.filter(img => img !== image));
+    
+    // Görselin başarıyla kaldırıldığını belirt
+    setMessage({
+      text: lang === 'tr' ? 'Görsel kaldırıldı (Kaydetmek için Değişiklikleri Kaydet butonuna tıklayın)' : 'Image removed (Click Save Changes to save)',
+      type: 'success'
+    });
   };
 
   // Değişiklikleri kaydet
   const saveChanges = async () => {
-    setUploading(true);
-    setMessage(null);
-    
     try {
-      // İlk görsel ana görsel olarak ayarlanır
-      const mainImage = images.length > 0 ? images[0] : '';
+      setUploading(true);
       
-      // API isteğini önbelleği atlatacak şekilde oluştur
-      const timestamp = Date.now();
-      const baseUrl = window.location.origin;
+      // Geçersiz URL'leri filtrele
+      const validImages = images.filter(url => 
+        url && typeof url === 'string' && url.trim() !== ''
+      );
       
-      const response = await fetch(`${baseUrl}/api/admin/services/${id}/gallery?t=${timestamp}`, {
+      if (validImages.length === 0) {
+        setMessage({
+          text: lang === 'tr' ? 'En az bir görsel olmalıdır' : 'At least one image is required',
+          type: 'error'
+        });
+        setUploading(false);
+        return;
+      }
+      
+      // API'ye gönderilecek veri
+      // İlk görsel (index 0) ana görsel olarak ayarlanır
+      const mainImage = validImages[0];
+      
+      const response = await fetch(`/api/admin/services/${id}/gallery?t=${Date.now()}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
         },
         body: JSON.stringify({
-          image: mainImage,
-          images: images
+          images: validImages,
+          image: mainImage // Ana görsel olarak ilk görseli belirtiyoruz
         }),
-        cache: 'no-store'
       });
       
-      if (!response.ok) {
-        throw new Error(lang === 'tr' ? 'Değişiklikler kaydedilemedi' : 'Could not save changes');
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Bir hata oluştu');
       }
       
-      const data = await response.json();
+      console.log("Galeri API yanıtı:", result);
       
-      if (data.success) {
-        setMessage({
-          text: lang === 'tr' ? 'Değişiklikler kaydedildi' : 'Changes saved successfully',
-          type: 'success'
-        });
-        
-        // Kaydettikten sonra yeniden veri yükle
-        setTimeout(() => {
-          router.refresh(); // Next.js router'ı yenile
-          fetchServiceData(); // Veriyi yeniden çek
-        }, 500);
-      } else {
-        throw new Error(lang === 'tr' ? 'Değişiklikler kaydedilemedi' : 'Could not save changes');
-      }
-    } catch (error: any) {
-      console.error('Kaydetme hatası:', error);
       setMessage({
-        text: error.message || 'Değişiklikler kaydedilirken bir hata oluştu',
+        text: lang === 'tr' ? 'Değişiklikler kaydedildi' : 'Changes saved successfully',
+        type: 'success'
+      });
+      
+      // Veri güncelleme işlemi sonrası veriyi hemen yeniden yükleme
+      setTimeout(() => {
+        fetchServiceData();
+      }, 500);
+    } catch (error) {
+      console.error('Galeri kaydetme hatası:', error);
+      setMessage({
+        text: lang === 'tr' 
+          ? `Hata: ${error instanceof Error ? error.message : 'Bilinmeyen bir hata oluştu'}` 
+          : `Error: ${error instanceof Error ? error.message : 'An unknown error occurred'}`,
         type: 'error'
       });
     } finally {
@@ -237,6 +288,16 @@ export default function ServiceGalleryPage({ params }: PageProps) {
 
   const handleDragEnd = () => {
     setDraggedItem(null);
+    
+    // Sıralama değiştiğinde kullanıcıya bilgi ver
+    if (draggedItem !== null) {
+      setMessage({
+        text: lang === 'tr' 
+          ? 'Görsel sırası değiştirildi (Kaydetmek için Değişiklikleri Kaydet butonuna tıklayın)' 
+          : 'Image order changed (Click Save Changes to save)',
+        type: 'success'
+      });
+    }
   };
 
   return (
@@ -350,8 +411,8 @@ export default function ServiceGalleryPage({ params }: PageProps) {
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-4">
                   {lang === 'tr' 
-                    ? 'Görselleri sıralamak için sürükleyip bırakabilirsiniz. En üstteki görsel ana görsel olarak kullanılacaktır.' 
-                    : 'You can drag and drop images to reorder them. The topmost image will be used as the main image.'}
+                    ? 'Görselleri sıralamak için sürükleyip bırakabilirsiniz. En üstteki görsel ana görsel olarak kaydedilecek ve servis sayfasında ana görsel olarak kullanılacaktır.' 
+                    : 'You can drag and drop images to reorder them. The topmost image will be saved as the main image and used as the main image on the service page.'}
                 </p>
                 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -395,7 +456,7 @@ export default function ServiceGalleryPage({ params }: PageProps) {
                       
                       {/* Ana Görsel Etiketi */}
                       {index === 0 && (
-                        <div className="absolute top-2 left-2 bg-teal-500 text-white text-xs px-2 py-1 rounded-md">
+                        <div className="absolute top-2 left-2 bg-teal-500 text-white text-xs px-2 py-1 rounded-md font-bold shadow">
                           {lang === 'tr' ? 'Ana Görsel' : 'Main Image'}
                         </div>
                       )}

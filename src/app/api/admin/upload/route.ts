@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToImageKit } from '@/lib/imagekitServer';
+import { uploadToTebi } from '@/lib/tebi';
 
 // Yüklenebilecek maksimum dosya boyutu (10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -37,39 +37,39 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Dosya içeriğini al
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    console.log(`Admin Upload API: Dosya Tebi.io'ya yükleniyor - İsim: ${file.name}, Boyut: ${file.size} bytes`);
     
-    // Dosya adını oluştur
-    const originalName = file.name;
+    // Tebi.io'ya yükle
+    const tebiResult = await uploadToTebi({
+      file,
+      maxSizeInBytes: MAX_FILE_SIZE,
+      checkFileType: true,
+      allowedFileTypes: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
+      path: `dogahotel/${folder}`
+    });
     
-    // ImageKit klasörünü belirle
-    const imageKitFolder = `dogahotel/${folder}`;
-    
-    // ImageKit'e yükle
-    const result = await uploadToImageKit(buffer, originalName, imageKitFolder);
-    
-    if (!result.success) {
+    if (!tebiResult.success) {
+      console.error('Admin Upload API: Tebi yükleme hatası', tebiResult.message);
       return NextResponse.json(
-        { error: result.error || 'Dosya yüklenirken bir hata oluştu' },
+        { error: tebiResult.message || 'Dosya yüklenemedi' },
         { status: 500 }
       );
     }
     
+    console.log(`Admin Upload API: Dosya başarıyla yüklendi: ${tebiResult.fileUrl}`);
+    
     // Başarılı yanıt döndür
     return NextResponse.json({
       success: true,
-      filePath: result.url,
-      url: result.url,
-      fileId: result.fileId,
-      fileName: originalName,
-      fileType: result.fileType
+      filePath: tebiResult.fileUrl,
+      url: tebiResult.fileUrl,
+      fileName: file.name,
+      fileType: file.type
     });
   } catch (error) {
-    console.error('Dosya yükleme hatası:', error);
+    console.error('Admin Upload API hatası:', error);
     return NextResponse.json(
-      { error: 'Dosya yüklenirken bir hata oluştu' },
+      { error: `Dosya yüklenirken bir hata oluştu: ${(error as Error).message}` },
       { status: 500 }
     );
   }

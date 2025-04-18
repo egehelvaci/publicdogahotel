@@ -1,6 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 
+// Veri tipleri
+interface RoomType {
+  id: string;
+  nameTR: string;
+  nameEN: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface RawRoomType {
+  id: string;
+  name_tr: string;
+  name_en: string;
+  active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Veritabanı sorgu sonucu tipi
+interface QueryResult<T> {
+  rows: T[];
+  rowCount: number;
+}
+
 // GET - Belirli bir oda tipini getir
 export async function GET(
   request: Request,
@@ -26,7 +51,7 @@ export async function GET(
         updated_at as "updatedAt"
       FROM room_types
       WHERE id = $1
-    `, [id]) as any;
+    `, [id]) as QueryResult<RoomType>;
 
     if (result.rows.length === 0) {
       return NextResponse.json(
@@ -67,7 +92,7 @@ export async function PUT(
     // Güncellenecek oda tipinin varlığını kontrol et
     const checkResult = await executeQuery(`
       SELECT id FROM room_types WHERE id = $1
-    `, [id]) as any;
+    `, [id]) as QueryResult<{ id: string }>;
 
     if (checkResult.rows.length === 0) {
       return NextResponse.json(
@@ -87,7 +112,11 @@ export async function PUT(
     // Mevcut oda tipini al
     const currentResult = await executeQuery(`
       SELECT name_tr, name_en, active FROM room_types WHERE id = $1
-    `, [id]) as any;
+    `, [id]) as QueryResult<{
+      name_tr: string;
+      name_en: string;
+      active: boolean;
+    }>;
 
     const currentRoomType = currentResult.rows[0];
     
@@ -106,7 +135,7 @@ export async function PUT(
       body.nameEN !== undefined ? body.nameEN : currentRoomType.name_en,
       body.active !== undefined ? body.active : currentRoomType.active,
       id
-    ]) as any;
+    ]) as QueryResult<RawRoomType>;
 
     return NextResponse.json({
       success: true,
@@ -147,7 +176,7 @@ export async function DELETE(
     // Silinecek oda tipinin varlığını kontrol et
     const checkResult = await executeQuery(`
       SELECT id FROM room_types WHERE id = $1
-    `, [id]) as any;
+    `, [id]) as QueryResult<{ id: string }>;
 
     if (checkResult.rows.length === 0) {
       return NextResponse.json(
@@ -159,7 +188,7 @@ export async function DELETE(
     // Bu oda tipine ait oda var mı kontrol et
     const roomsResult = await executeQuery(`
       SELECT COUNT(*) as count FROM rooms WHERE room_type_id = $1
-    `, [id]) as any;
+    `, [id]) as QueryResult<{ count: string }>;
 
     if (parseInt(roomsResult.rows[0].count) > 0) {
       return NextResponse.json(

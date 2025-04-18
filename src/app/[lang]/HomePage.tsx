@@ -164,17 +164,17 @@ const ServiceCard = ({ service, index, language }: { service: any; index: number
 // İstatistik kartı bileşeni
 const StatCard = ({ stat, index }: { stat: any; index: number }) => (
   <motion.div
-    className="bg-white rounded-lg shadow-lg p-6 relative overflow-hidden group"
+    className="bg-white/90 backdrop-blur-sm rounded-lg shadow-lg p-6 relative overflow-hidden group"
     whileHover={{ 
       y: -5,
-      boxShadow: "0 15px 30px rgba(0,0,0,0.1)",
+      boxShadow: "0 15px 30px rgba(0,0,0,0.15)",
       transition: { duration: 0.2 }
     }}
   >
-    <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <div className="absolute inset-0 bg-gradient-to-br from-white to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
     <div className="relative z-10">
       <div className="flex justify-center mb-4">
-        <div className="text-amber-500 group-hover:text-amber-600 transition-colors duration-300">{getIconComponent(stat.icon)}</div>
+        <div className="text-[#169c71] group-hover:text-[#0e7c59] transition-colors duration-300">{getIconComponent(stat.icon)}</div>
       </div>
       <AnimatedCounter
         value={stat.value}
@@ -182,7 +182,7 @@ const StatCard = ({ stat, index }: { stat: any; index: number }) => (
       />
       <div className="text-gray-600 text-center">{stat.title}</div>
     </div>
-    <div className="absolute -right-2 -bottom-2 w-20 h-20 bg-amber-100 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+    <div className="absolute -right-2 -bottom-2 w-20 h-20 bg-[#169c71]/10 rounded-full opacity-0 group-hover:opacity-40 transition-opacity duration-300"></div>
   </motion.div>
 );
 
@@ -374,8 +374,8 @@ export default function HomePage({ lang }: HomePageProps) {
   // İstatistik verileri
   const statsData = [
     {
-      value: 100,
-      title: language === 'tr' ? 'Lüks Oda' : 'Luxury Rooms',
+      value: 58,
+      title: language === 'tr' ? 'Konforlu Oda' : 'Comfortable Rooms',
       icon: 'bed'
     },
     {
@@ -384,14 +384,14 @@ export default function HomePage({ lang }: HomePageProps) {
       icon: 'medal'
     },
     {
-      value: 3,
+      value: 1,
       title: language === 'tr' ? 'Restoran' : 'Restaurants',
       icon: 'utensils'
     },
     {
-      value: 15,
-      title: language === 'tr' ? 'Yıllık Tecrübe' : 'Years Experience',
-      icon: 'medal'
+      value: 2,
+      title: language === 'tr' ? 'Kaydıraklı ve Normal Havuz' : 'Slide and Regular Pool',
+      icon: 'swimming-pool'
     }
   ];
 
@@ -516,7 +516,7 @@ export default function HomePage({ lang }: HomePageProps) {
                             <div className="mb-8">
                               <h4 className="text-lg font-semibold mb-3 text-gray-700">{language === 'tr' ? 'Özellikler' : 'Features'}</h4>
                               <ul className="grid grid-cols-2 gap-3">
-                                {room.features && Array.isArray(room.features) && room.features.map((feature, i) => (
+                                {room.features && Array.isArray(room.features) && room.features.map((feature: any, i: number) => (
                                   <li key={i} className="flex items-center">
                                     <span className="w-2 h-2 rounded-full bg-amber-500 mr-2"></span>
                                     <span className="text-gray-600">{feature}</span>
@@ -641,9 +641,36 @@ export default function HomePage({ lang }: HomePageProps) {
         </section>
 
         {/* Stats Section */}
-        <section className="py-16 bg-amber-50">
-          <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <section className="py-16 bg-[#169c71] relative overflow-hidden">
+          <div className="absolute inset-0 bg-black/5"></div>
+          {/* Dekoratif Elementler */}
+          <div className="absolute top-10 left-1/4 w-32 h-32 bg-white rounded-full opacity-10 blur-2xl"></div>
+          <div className="absolute bottom-10 right-1/4 w-48 h-48 bg-white rounded-full opacity-10 blur-3xl"></div>
+          
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="text-center mb-10">
+              <motion.span
+                className="block text-white/80 text-sm uppercase tracking-wider mb-2"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                viewport={{ once: true }}
+              >
+                {language === 'tr' ? 'Rakamlarla Doğa Hotel' : 'Doga Hotel in Numbers'}
+              </motion.span>
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 relative inline-block text-white">
+                {language === 'tr' ? 'İstatistiklerimiz' : 'Our Statistics'}
+                <motion.span 
+                  className="absolute bottom-0 left-0 w-full h-1 bg-white"
+                  initial={{ width: 0 }}
+                  whileInView={{ width: "100%" }}
+                  transition={{ delay: 0.3, duration: 0.8 }}
+                  viewport={{ once: true }}
+                ></motion.span>
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
               {statsData.map((stat, index) => (
                 <StatCard key={index} stat={stat} index={index} />
               ))}
@@ -652,71 +679,84 @@ export default function HomePage({ lang }: HomePageProps) {
         </section>
 
         {/* Features Section */}
-        <section className="py-20 bg-white relative overflow-hidden">
+        <section className="py-20 bg-gradient-to-b from-white to-amber-50 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-b from-amber-50 to-transparent"></div>
+          
+          {/* Dekoratif Elementler */}
+          <div className="absolute -left-20 top-1/3 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -right-20 bottom-1/3 w-60 h-60 bg-amber-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-100/20 rounded-full blur-3xl -z-10"></div>
+          
           <div className="container mx-auto px-4 relative z-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
-              <div>
-                <ScrollAnimationWrapper animation="fadeIn" delay={0.1} once={true}>
-                  <h2 className="text-3xl md:text-4xl font-bold mb-6">
+            <div className="max-w-5xl mx-auto">
+              <ScrollAnimationWrapper animation="fadeIn" delay={0.1} once={true}>
+                <div className="text-center mb-12">
+                  <motion.span
+                    className="block text-amber-600 text-sm uppercase tracking-wider mb-2"
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    viewport={{ once: true }}
+                  >
+                    {language === 'tr' ? 'Farkımız' : 'Our Difference'}
+                  </motion.span>
+                  <h2 className="text-3xl md:text-4xl font-bold mb-4 relative inline-block">
                     {language === 'tr' ? 'Neden Bizi Tercih Etmelisiniz?' : 'Why Choose Us?'}
+                    <motion.span 
+                      className="absolute bottom-0 left-0 w-full h-1 bg-amber-500"
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "100%" }}
+                      transition={{ delay: 0.3, duration: 0.8 }}
+                      viewport={{ once: true }}
+                    ></motion.span>
                   </h2>
-                  <p className="text-gray-600 mb-8">
+                  <p className="text-gray-600 max-w-3xl mx-auto mt-4">
                     {language === 'tr'
                       ? 'Doğa Hotel, misafirlerine özel deneyimler ve konfor sunan, doğa ile iç içe bir tatil vaat ediyor.'
                       : 'Doga Hotel promises a holiday intertwined with nature, offering special experiences and comfort to its guests.'}
                   </p>
-                  
-                  <div className="space-y-8">
-                    {features.map((feature) => (
-                      <ScrollAnimationWrapper
-                        key={feature.id}
-                        animation="fadeInUp"
-                        delay={feature.delay}
-                        once={true}
-                      >
-                        <div className="flex">
-                          <div className="flex-shrink-0 mr-4">
-                            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
-                              {getIconComponent(feature.icon)}
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold mb-2 text-gray-800">{feature.title}</h3>
-                            <p className="text-gray-600">{feature.description}</p>
-                          </div>
+                </div>
+              </ScrollAnimationWrapper>
+                
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                {features.map((feature) => (
+                  <ScrollAnimationWrapper
+                    key={feature.id}
+                    animation="fadeInUp"
+                    delay={feature.delay}
+                    once={true}
+                  >
+                    <motion.div 
+                      className="bg-white rounded-xl p-8 shadow-lg border border-amber-100/50 h-full hover:shadow-xl transition-all duration-300"
+                      whileHover={{ y: -5, boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.1)" }}
+                    >
+                      <div className="mb-6 bg-gradient-to-br from-amber-100 to-amber-50 w-16 h-16 rounded-lg flex items-center justify-center shadow-inner">
+                        <div className="text-amber-600">
+                          {getIconComponent(feature.icon)}
                         </div>
-                      </ScrollAnimationWrapper>
-                    ))}
-                  </div>
-                </ScrollAnimationWrapper>
+                      </div>
+                      <h3 className="text-xl font-bold mb-4 text-gray-800">{feature.title}</h3>
+                      <p className="text-gray-600">{feature.description}</p>
+                    </motion.div>
+                  </ScrollAnimationWrapper>
+                ))}
               </div>
-              
-              <div className="relative">
-                <ScrollAnimationWrapper animation="fadeIn" delay={0.3} once={true}>
-                  <div className="relative h-[600px] rounded-xl overflow-hidden shadow-2xl">
-                    <Image
-                      src="/images/features/hotel-lobby.jpg"
-                      alt={language === 'tr' ? 'Otel Lobisi' : 'Hotel Lobby'}
-                      fill
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                    <div className="absolute bottom-8 left-8 right-8">
-                      <p className="text-white text-2xl font-bold mb-2">
-                        {language === 'tr' ? 'Modern & Lüks' : 'Modern & Luxury'}
-                      </p>
-                      <p className="text-white/90">
-                        {language === 'tr' 
-                          ? 'Şık tasarım ve konforun buluşma noktası' 
-                          : 'Where elegant design meets comfort'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="absolute -top-4 -left-4 w-40 h-40 bg-amber-100 rounded-full -z-10"></div>
-                  <div className="absolute -bottom-8 -right-8 w-60 h-60 bg-amber-50 rounded-full -z-10"></div>
-                </ScrollAnimationWrapper>
+                
+              <div className="mt-12 text-center">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Link
+                    href={`/${language}/about`}
+                    className="inline-flex items-center bg-amber-600 hover:bg-amber-700 text-white py-3 px-8 rounded-md transition-all duration-300 shadow-lg relative overflow-hidden group"
+                  >
+                    <span className="relative z-10">
+                      {language === 'tr' ? 'Daha Fazla Bilgi' : 'Learn More'} <FaArrowRight className="ml-2 inline transform group-hover:translate-x-1 transition-transform duration-300" />
+                    </span>
+                    <span className="absolute top-0 left-0 w-full h-0 bg-amber-500 transition-all duration-300 group-hover:h-full -z-0"></span>
+                  </Link>
+                </motion.div>
               </div>
             </div>
           </div>

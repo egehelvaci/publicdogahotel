@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import AdminHeader from '@/app/components/admin/AdminHeader';
-import { AboutData } from '@/app/data/about';
-import { FaUpload, FaSave, FaSpinner, FaCheck, FaExclamationTriangle } from 'react-icons/fa';
+import Link from 'next/link';
+import { FaArrowLeft, FaUpload, FaSave, FaSpinner } from 'react-icons/fa';
+import { toast } from 'react-hot-toast';
 
 interface PageProps {
   params: Promise<{ lang: string }>;
@@ -16,23 +16,37 @@ export default function AboutAdminPage({ params }: PageProps) {
   const lang = resolvedParams.lang;
 
   const router = useRouter();
-  const [aboutData, setAboutData] = useState<AboutData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{text: string, type: 'success' | 'error'} | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form durumları
-  const [titleTR, setTitleTR] = useState('');
-  const [titleEN, setTitleEN] = useState('');
-  const [subtitleTR, setSubtitleTR] = useState('');
-  const [subtitleEN, setSubtitleEN] = useState('');
-  const [contentTR, setContentTR] = useState<string>('');
-  const [contentEN, setContentEN] = useState<string>('');
-  const [badgesTR, setBadgesTR] = useState<string>('');
-  const [badgesEN, setBadgesEN] = useState<string>('');
-  const [imageUrl, setImageUrl] = useState<string>('');
+  const [aboutData, setAboutData] = useState({
+    titleTR: '',
+    titleEN: '',
+    subtitleTR: '',
+    subtitleEN: '',
+    contentTR: [] as string[],
+    contentEN: [] as string[],
+    badgesTR: [] as string[],
+    badgesEN: [] as string[],
+    imageUrl: ''
+  });
+
+  // Form içeriğini düzenleme state'leri
+  const [formData, setFormData] = useState({
+    titleTR: '',
+    titleEN: '',
+    subtitleTR: '',
+    subtitleEN: '',
+    contentTR: '',
+    contentEN: '',
+    badgesTR: '',
+    badgesEN: '',
+    imageUrl: ''
+  });
 
   // API'den verileri çek
   useEffect(() => {
@@ -47,25 +61,35 @@ export default function AboutAdminPage({ params }: PageProps) {
         }
         
         const data = await response.json();
-        setAboutData(data);
         
         // Form alanlarını doldur
-        setTitleTR(data.titleTR);
-        setTitleEN(data.titleEN);
-        setSubtitleTR(data.subtitleTR);
-        setSubtitleEN(data.subtitleEN);
-        setContentTR(data.contentTR.join('\n\n'));
-        setContentEN(data.contentEN.join('\n\n'));
-        setBadgesTR(data.badgesTR.join(', '));
-        setBadgesEN(data.badgesEN.join(', '));
-        setImageUrl(data.imageUrl || '');
+        setAboutData({
+          titleTR: data.titleTR || '',
+          titleEN: data.titleEN || '',
+          subtitleTR: data.subtitleTR || '',
+          subtitleEN: data.subtitleEN || '',
+          contentTR: data.contentTR || [],
+          contentEN: data.contentEN || [],
+          badgesTR: data.badgesTR || [],
+          badgesEN: data.badgesEN || [],
+          imageUrl: data.imageUrl || ''
+        });
+        
+        setFormData({
+          titleTR: data.titleTR || '',
+          titleEN: data.titleEN || '',
+          subtitleTR: data.subtitleTR || '',
+          subtitleEN: data.subtitleEN || '',
+          contentTR: Array.isArray(data.contentTR) ? data.contentTR.join('\n\n') : (data.contentTR || ''),
+          contentEN: Array.isArray(data.contentEN) ? data.contentEN.join('\n\n') : (data.contentEN || ''),
+          badgesTR: Array.isArray(data.badgesTR) ? data.badgesTR.join(', ') : (data.badgesTR || ''),
+          badgesEN: Array.isArray(data.badgesEN) ? data.badgesEN.join(', ') : (data.badgesEN || ''),
+          imageUrl: data.imageUrl || ''
+        });
         
       } catch (error) {
         console.error('Veri çekme hatası:', error);
-        setMessage({
-          text: 'Veriler yüklenemedi. Lütfen sayfayı yenileyin.',
-          type: 'error'
-        });
+        toast.error(lang === 'tr' ? 'Veriler yüklenemedi' : 'Failed to load data');
       } finally {
         setLoading(false);
       }
@@ -74,119 +98,142 @@ export default function AboutAdminPage({ params }: PageProps) {
     fetchData();
   }, []);
 
-  // Resim yükleme işlemi
-  const handleImageUpload = async () => {
-    const fileInput = imageInputRef.current;
+  // Form input değişiklikleri için handler
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target as HTMLInputElement;
     
-    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-      setMessage({ text: 'Lütfen bir resim seçin.', type: 'error' });
-      return;
-    }
-    
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    setSaving(true);
-    setMessage(null);
-    
-    try {
-      const response = await fetch('/api/admin/about/upload', {
-        method: 'POST',
-        body: formData,
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Resim yüklenemedi');
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        // Başarılı ise state'i güncelle
-        setImageUrl(result.url);
-        
-        if (aboutData) {
-          setAboutData({
-            ...aboutData,
-            heroImage: result.url,
-            mainImage: result.url,
-            imageUrl: result.url
-          });
-        }
-        
-        setMessage({ text: 'Resim başarıyla yüklendi.', type: 'success' });
-        
-        // Input alanını temizle
-        if (fileInput) {
-          fileInput.value = '';
-        }
-      } else {
-        throw new Error(result.error || 'Resim yüklenemedi');
-      }
-    } catch (error: unknown) { // Changed 'any' to 'unknown'
-      console.error('Resim yükleme hatası:', error);
-      let errorMessage = 'Resim yüklenirken bir hata oluştu.';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      setMessage({ text: errorMessage, type: 'error' });
-    } finally {
-      setSaving(false);
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData({ ...formData, [name]: checked });
+    } else {
+      setFormData({ ...formData, [name]: value });
     }
   };
 
-  // Metin içeriklerini kaydet
+  // Dosya yükleme işlemi
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    setIsUploading(true);
+
+    try {
+      console.log('Dosya yükleniyor:', file.name, file.type, file.size);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Önce about upload API'sini dene, hata verirse genel upload API'yi kullan
+      let response;
+      try {
+        response = await fetch('/api/admin/about/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          console.log('About API başarısız, genel API deneniyor');
+          throw new Error('About API başarısız');
+        }
+      } catch (err) {
+        console.log('Alternatif API deneniyor');
+        // Alternatif API'yi dene
+        response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+      }
+
+      if (!response.ok) {
+        console.error('Yükleme API yanıtı başarısız:', response.status);
+        const errorText = await response.text();
+        throw new Error(`Yükleme hatası: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Yükleme sonucu:', result);
+
+      if (result.success) {
+        // Yanıt formatı farklılıklarını ele al
+        const imageUrl = result.url || result.filePath || '';
+        
+        if (!imageUrl) {
+          throw new Error('Yükleme başarılı fakat resim URL bulunamadı');
+        }
+        
+        // Form verisini güncelle
+        setFormData(prevState => ({
+          ...prevState, 
+          imageUrl: imageUrl
+        }));
+        toast.success(lang === 'tr' ? 'Görsel başarıyla yüklendi!' : 'Image uploaded successfully!');
+      } else {
+        console.error('API başarılı yanıt vermedi:', result);
+        toast.error(result.message || (lang === 'tr' ? 'Görsel yüklenemedi!' : 'Failed to upload image!'));
+      }
+    } catch (error) {
+      console.error('Görsel yükleme hatası:', error);
+      toast.error(lang === 'tr' ? `Görsel yüklenirken bir hata oluştu: ${error.message}` : `An error occurred while uploading the image: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Değişiklikleri kaydet
   const handleSaveContent = async () => {
-    if (!aboutData) return;
-    
+    if (!formData.titleTR || !formData.titleEN) {
+      toast.error(lang === 'tr' ? 'Başlık alanları zorunludur' : 'Title fields are required');
+      return;
+    }
+
     setSaving(true);
-    setMessage(null);
     
     try {
-      // Metin içeriklerini hazırla
-      const updatedData: Partial<AboutData> = {
-        titleTR,
-        titleEN,
-        subtitleTR,
-        subtitleEN,
-        contentTR: contentTR.split('\n\n').filter(paragraph => paragraph.trim() !== ''),
-        contentEN: contentEN.split('\n\n').filter(paragraph => paragraph.trim() !== ''),
-        badgesTR: badgesTR.split(',').map(badge => badge.trim()).filter(badge => badge !== ''),
-        badgesEN: badgesEN.split(',').map(badge => badge.trim()).filter(badge => badge !== ''),
-        imageUrl
+      const contentTR = formData.contentTR.split('\n\n').filter(p => p.trim() !== '');
+      const contentEN = formData.contentEN.split('\n\n').filter(p => p.trim() !== '');
+      const badgesTR = formData.badgesTR.split(',').map(b => b.trim()).filter(b => b !== '');
+      const badgesEN = formData.badgesEN.split(',').map(b => b.trim()).filter(b => b !== '');
+      
+      const updatedData = {
+        titleTR: formData.titleTR,
+        titleEN: formData.titleEN,
+        subtitleTR: formData.subtitleTR || '',
+        subtitleEN: formData.subtitleEN || '',
+        contentTR,
+        contentEN,
+        badgesTR,
+        badgesEN,
+        imageUrl: formData.imageUrl || '',
+        showOnHome: true,
+        position: 1
       };
       
       const response = await fetch('/api/admin/about', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updatedData),
-        cache: 'no-store'
       });
       
       if (!response.ok) {
-        throw new Error('Veriler kaydedilemedi');
+        throw new Error('Veri kaydedilemedi');
       }
       
       const result = await response.json();
       
       if (result.success) {
-        setAboutData(result.data);
-        setMessage({ text: 'Değişiklikler başarıyla kaydedildi.', type: 'success' });
+        toast.success(lang === 'tr' ? 'Değişiklikler kaydedildi' : 'Changes saved successfully');
       } else {
-        throw new Error(result.error || 'Veriler kaydedilemedi');
+        throw new Error(result.error || 'Veri kaydedilemedi');
       }
-    } catch (error: unknown) { // Changed 'any' to 'unknown'
+    } catch (error) {
       console.error('Kaydetme hatası:', error);
-      let errorMessage = 'Veriler kaydedilirken bir hata oluştu.';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      setMessage({ text: errorMessage, type: 'error' });
+      toast.error(lang === 'tr' ? 'Kaydetme sırasında hata oluştu' : 'Error while saving');
     } finally {
       setSaving(false);
     }
@@ -194,205 +241,232 @@ export default function AboutAdminPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
-        <AdminHeader title={lang === 'tr' ? 'Hakkımızda Sayfası' : 'About Page'} backUrl={`/${lang}/admin`} />
-        <div className="max-w-6xl mx-auto p-4 h-screen flex items-center justify-center">
-          <div className="animate-spin text-amber-600">
-            <FaSpinner size={40} />
-          </div>
+      <div className="min-h-screen bg-gray-100 p-8">
+        <div className="text-center text-xl font-semibold text-gray-700">
+          {lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <AdminHeader title={lang === 'tr' ? 'Hakkımızda Sayfası' : 'About Page'} backUrl={`/${lang}/admin`} />
-      
-      <div className="max-w-6xl mx-auto p-4">
-        {/* Bilgi/Hata Mesajı */}
-        {message && (
-          <div className={`mb-6 p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
-            <div className="flex items-center">
-              {message.type === 'success' ? <FaCheck className="mr-2" /> : <FaExclamationTriangle className="mr-2" />}
-              <p>{message.text}</p>
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+      <div className="max-w-5xl mx-auto">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-800">
+              {lang === 'tr' ? 'Hakkımızda Sayfasını Düzenle' : 'Edit About Page'}
+            </h1>
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/${lang}/admin`}
+                className="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md shadow-sm"
+              >
+                <FaArrowLeft className="mr-2" />
+                {lang === 'tr' ? 'Admin Panele Dön' : 'Back to Admin Panel'}
+              </Link>
             </div>
           </div>
-        )}
 
-        {/* Görsel Yükleme Bölümü */}
-        <div className="bg-white shadow-md rounded-lg mb-6 p-6">
-          <h2 className="text-xl font-semibold mb-4">{lang === 'tr' ? 'Sayfa Görseli' : 'Page Image'}</h2>
-          <p className="text-gray-600 mb-4">{lang === 'tr' ? 'Yüklenen görsel hem hero alanında hem de hakkımızda sayfasında kullanılacaktır.' : 'The uploaded image will be used both in the hero area and on the about page.'}</p>
-          
-          <div className="space-y-4">
-            <div className="bg-gray-100 h-60 rounded-md overflow-hidden relative">
-              {imageUrl && (
-                <img 
-                  src={imageUrl} 
-                  alt="Sayfa Görseli" 
-                  className="w-full h-full object-cover"
+          {/* Görsel Yükleme Bölümü */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-700">
+                {lang === 'tr' ? 'Sayfa Görseli' : 'Page Image'}
+              </h2>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center"
+                >
+                  {isUploading ? (
+                    <span>{lang === 'tr' ? 'Yükleniyor...' : 'Uploading...'}</span>
+                  ) : (
+                    <>
+                      <FaUpload className="mr-2" />
+                      <span>{lang === 'tr' ? 'Görsel Yükle' : 'Upload Image'}</span>
+                    </>
+                  )}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                  className="hidden"
                 />
-              )}
-              {!imageUrl && (
-                <div className="flex items-center justify-center h-full text-gray-400">
-                  {lang === 'tr' ? 'Görsel yüklenmedi' : 'No image uploaded'}
+              </div>
+            </div>
+            
+            {/* Görsel Önizleme */}
+            <div className="mt-4">
+              {formData.imageUrl ? (
+                <div className="relative w-full h-64 overflow-hidden rounded-lg border-2 border-gray-200">
+                  <img 
+                    src={formData.imageUrl} 
+                    alt="Sayfa Görseli" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="w-full h-64 flex items-center justify-center bg-gray-100 rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-500">
+                    {lang === 'tr' ? 'Henüz görsel yüklenmedi' : 'No image uploaded yet'}
+                  </p>
                 </div>
               )}
             </div>
-            
-            <div className="flex">
-              <input 
-                type="file" 
-                ref={imageInputRef}
-                className="hidden" 
-                accept="image/*" 
-                onChange={() => {}} 
-              />
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md mr-2 flex-grow"
-              >
-                <FaUpload className="inline-block mr-2" />
-                {lang === 'tr' ? 'Görsel Seç' : 'Select Image'}
-              </button>
-              <button
-                type="button"
-                onClick={handleImageUpload}
-                disabled={saving}
-                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-md disabled:opacity-50"
-              >
-                {saving ? <FaSpinner className="inline-block animate-spin" /> : 'Yükle'}
-              </button>
-            </div>
           </div>
-        </div>
-        
-        {/* İçerik Düzenleme Bölümü */}
-        <div className="bg-white shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-6">{lang === 'tr' ? 'İçerik' : 'Content'}</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Başlık (TR) */}
+
+          {/* İçerik Düzenleme Bölümü */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Sol Kolon - Türkçe */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Başlık (TR)</label>
-              <input
-                type="text"
-                value={titleTR}
-                onChange={(e) => setTitleTR(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            
-            {/* Başlık (EN) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Başlık (EN)</label>
-              <input
-                type="text"
-                value={titleEN}
-                onChange={(e) => setTitleEN(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Alt Başlık (TR) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Alt Başlık (TR)</label>
-              <input
-                type="text"
-                value={subtitleTR}
-                onChange={(e) => setSubtitleTR(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            
-            {/* Alt Başlık (EN) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Alt Başlık (EN)</label>
-              <input
-                type="text"
-                value={subtitleEN}
-                onChange={(e) => setSubtitleEN(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* İçerik (TR) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                İçerik (TR) <span className="text-gray-400 text-xs">(Paragraflar arasında boş satır bırakın)</span>
-              </label>
-              <textarea
-                value={contentTR}
-                onChange={(e) => setContentTR(e.target.value)}
-                rows={10}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              ></textarea>
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">
+                {lang === 'tr' ? 'Türkçe İçerik' : 'Turkish Content'}
+              </h2>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="titleTR">
+                  {lang === 'tr' ? 'Başlık (TR)' : 'Title (TR)'}
+                </label>
+                <input
+                  id="titleTR"
+                  type="text"
+                  name="titleTR"
+                  value={formData.titleTR || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="subtitleTR">
+                  {lang === 'tr' ? 'Alt Başlık (TR)' : 'Subtitle (TR)'}
+                </label>
+                <input
+                  id="subtitleTR"
+                  type="text"
+                  name="subtitleTR"
+                  value={formData.subtitleTR || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="contentTR">
+                  {lang === 'tr' ? 'İçerik (TR)' : 'Content (TR)'}
+                  <span className="text-gray-400 text-xs ml-2">{lang === 'tr' ? '(Paragraflar arasında boş satır bırakın)' : '(Leave empty line between paragraphs)'}</span>
+                </label>
+                <textarea
+                  id="contentTR"
+                  name="contentTR"
+                  value={formData.contentTR || ''}
+                  onChange={handleInputChange}
+                  rows={8}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="badgesTR">
+                  {lang === 'tr' ? 'Rozetler (TR)' : 'Badges (TR)'}
+                  <span className="text-gray-400 text-xs ml-2">{lang === 'tr' ? '(Virgülle ayırın)' : '(Separate with commas)'}</span>
+                </label>
+                <input
+                  id="badgesTR"
+                  type="text"
+                  name="badgesTR"
+                  value={formData.badgesTR || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
             </div>
             
-            {/* İçerik (EN) */}
+            {/* Sağ Kolon - İngilizce */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                İçerik (EN) <span className="text-gray-400 text-xs">(Leave empty line between paragraphs)</span>
-              </label>
-              <textarea
-                value={contentEN}
-                onChange={(e) => setContentEN(e.target.value)}
-                rows={10}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              ></textarea>
+              <h2 className="text-lg font-semibold text-gray-700 mb-4">
+                {lang === 'tr' ? 'İngilizce İçerik' : 'English Content'}
+              </h2>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="titleEN">
+                  {lang === 'tr' ? 'Başlık (EN)' : 'Title (EN)'}
+                </label>
+                <input
+                  id="titleEN"
+                  type="text"
+                  name="titleEN"
+                  value={formData.titleEN || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                  required
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="subtitleEN">
+                  {lang === 'tr' ? 'Alt Başlık (EN)' : 'Subtitle (EN)'}
+                </label>
+                <input
+                  id="subtitleEN"
+                  type="text"
+                  name="subtitleEN"
+                  value={formData.subtitleEN || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="contentEN">
+                  {lang === 'tr' ? 'İçerik (EN)' : 'Content (EN)'}
+                  <span className="text-gray-400 text-xs ml-2">{lang === 'tr' ? '(Paragraflar arasında boş satır bırakın)' : '(Leave empty line between paragraphs)'}</span>
+                </label>
+                <textarea
+                  id="contentEN"
+                  name="contentEN"
+                  value={formData.contentEN || ''}
+                  onChange={handleInputChange}
+                  rows={8}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="badgesEN">
+                  {lang === 'tr' ? 'Rozetler (EN)' : 'Badges (EN)'}
+                  <span className="text-gray-400 text-xs ml-2">{lang === 'tr' ? '(Virgülle ayırın)' : '(Separate with commas)'}</span>
+                </label>
+                <input
+                  id="badgesEN"
+                  type="text"
+                  name="badgesEN"
+                  value={formData.badgesEN || ''}
+                  onChange={handleInputChange}
+                  className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                />
+              </div>
             </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Özellikler (TR) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rozetler (TR) <span className="text-gray-400 text-xs">(Virgülle ayırın)</span>
-              </label>
-              <input
-                type="text"
-                value={badgesTR}
-                onChange={(e) => setBadgesTR(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-            
-            {/* Özellikler (EN) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Rozetler (EN) <span className="text-gray-400 text-xs">(Separate with commas)</span>
-              </label>
-              <input
-                type="text"
-                value={badgesEN}
-                onChange={(e) => setBadgesEN(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-          </div>
-          
+
           {/* Kaydet Butonu */}
-          <div className="flex justify-end">
+          <div className="mt-8 flex justify-end">
             <button
-              type="button"
               onClick={handleSaveContent}
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md disabled:opacity-50 flex items-center"
+              className="bg-teal-600 hover:bg-teal-700 text-white py-2 px-6 rounded-md flex items-center font-semibold"
             >
               {saving ? (
-                <>
-                  <FaSpinner className="inline-block mr-2 animate-spin" />
-                  {lang === 'tr' ? 'Kaydediliyor...' : 'Saving...'}
-                </>
+                <span>{lang === 'tr' ? 'Kaydediliyor...' : 'Saving...'}</span>
               ) : (
                 <>
-                  <FaSave className="inline-block mr-2" />
+                  <FaSave className="mr-2" />
                   {lang === 'tr' ? 'Değişiklikleri Kaydet' : 'Save Changes'}
                 </>
               )}

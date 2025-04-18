@@ -1,10 +1,57 @@
 'use client';
 
+import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { isImageKitUrl, transformVideo } from '@/lib/imagekit';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+
+interface VideoProps {
+  src: string;
+  alt?: string;
+  width?: number;
+  height?: number;
+  className?: string;
+  controls?: boolean;
+  autoPlay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  poster?: string; // Video poster/thumbnail
+}
+
+// Video bileşeni - Tebi.io servisine uygun
+const TebiVideo: React.FC<VideoProps> = ({ 
+  src, 
+  alt = "Video",
+  width, 
+  height, 
+  className = "", 
+  controls = false,
+  autoPlay = false,
+  loop = false,
+  muted = false,
+  poster
+}) => {
+  return (
+    <video
+      src={src}
+      poster={poster}
+      width={width}
+      height={height}
+      controls={controls}
+      autoPlay={autoPlay}
+      loop={loop}
+      muted={muted}
+      className={className}
+    >
+      <source src={src} type="video/mp4" />
+      {alt && <p>{alt}</p>}
+    </video>
+  );
+};
+
+export default TebiVideo;
 
 export interface ImageKitVideoProps {
   src: string;
@@ -22,7 +69,7 @@ export interface ImageKitVideoProps {
   fallbackSrc?: string;
 }
 
-export default function ImageKitVideo({
+export function ImageKitVideo({
   src,
   poster,
   width = '100%',

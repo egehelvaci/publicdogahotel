@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 // GET endpoint - Galeri öğelerini listeler
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Tüm galeri öğelerini getir ve sırala
     const galleryItems = await prisma.gallery.findMany({
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     // URL'lerin doğru bir şekilde işlendiğinden emin ol
     const imageUrl = body.imageUrl || body.image_url || null;
     const videoUrl = body.videoUrl || body.video_url || null;
+    const thumbnailUrl = body.thumbnailUrl || null; // Video thumbnail URL'i
     
     // Tip kontrolü
     let type = body.type || 'image';
@@ -87,7 +88,39 @@ export async function POST(request: NextRequest) {
       // Eğer her iki URL de varsa, gelen body.type değerini kullan
     }
     
-    console.log('API: Tip ve URL\'ler doğrulandı:', { type, imageUrl, videoUrl });
+    console.log('API: Tip ve URL\'ler doğrulandı:', { type, imageUrl, videoUrl, thumbnailUrl });
+    
+    // Video öğesi eklerken thumbnail değerini ayarla
+    const isVideo = type === 'video' || videoUrl;
+    let finalImageUrl = imageUrl;
+
+    // Video ise thumbnail değerini ayarla
+    if (isVideo) {
+      // Video için öncelikle thumbnailUrl kullan, yoksa imageUrl'i kullan
+      finalImageUrl = thumbnailUrl || imageUrl;
+      
+      if (!finalImageUrl) {
+        console.warn('Video thumbnail bulunamadı, lütfen bir görsel yükleyin veya kapak resmi oluşturun');
+      } else {
+        console.log(`Video thumbnail ayarlandı: ${finalImageUrl} (${thumbnailUrl ? 'API thumbnail' : (imageUrl ? 'Image URL' : 'Thumbnail yok')})`);
+      }
+    }
+
+    const itemData = {
+      ...body,
+      imageUrl: finalImageUrl, // imageUrl alanı video için thumbnail olarak kullanılacak
+      videoUrl: isVideo ? videoUrl : null,
+      type: isVideo ? 'video' : 'image'
+    };
+    
+    // Konsola işlem bilgisini yaz
+    console.log('Oluşturulan galeri öğesi:', {
+      type: itemData.type,
+      imageUrl: itemData.imageUrl,
+      videoUrl: itemData.videoUrl,
+      thumbnailUrl: thumbnailUrl,
+      isVideoWithThumbnail: isVideo && !!finalImageUrl
+    });
     
     // En yüksek sıra numarasını bul ve 1 ekle
     const nextOrder = await getNextOrderNumber();
@@ -95,13 +128,13 @@ export async function POST(request: NextRequest) {
     // Yeni galeri öğesi ekle
     const newGalleryItem = await prisma.gallery.create({
       data: {
-        titleTR: body.titleTR || '',
-        titleEN: body.titleEN || '',
-        descriptionTR: body.descriptionTR || '',
-        descriptionEN: body.descriptionEN || '',
-        imageUrl: type === 'image' ? imageUrl : null,
-        videoUrl: type === 'video' ? videoUrl : null,
-        type: type,
+        titleTR: itemData.titleTR || '',
+        titleEN: itemData.titleEN || '',
+        descriptionTR: itemData.descriptionTR || '',
+        descriptionEN: itemData.descriptionEN || '',
+        imageUrl: itemData.imageUrl,
+        videoUrl: itemData.videoUrl,
+        type: itemData.type,
         orderNumber: nextOrder,
       },
     });
@@ -128,10 +161,10 @@ export async function POST(request: NextRequest) {
 }
 
 // Sıralama işlemini yönetir
-async function handleReorder(body: any) {
+async function handleReorder(body: { items: Array<{ id: string; orderNumber: number }> }) {
   try {
     // Paralel işlemler için Promise.all kullanıyoruz
-    const updates = body.items.map((item: { id: string; orderNumber: number }) => {
+    const updates = body.items.map((item) => {
       return prisma.gallery.update({
         where: { id: item.id },
         data: { orderNumber: item.orderNumber },

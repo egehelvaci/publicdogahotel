@@ -9,7 +9,7 @@ export const prisma = globalForPrisma.prisma || new PrismaClient();
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
 // SQL sorguları yürütmek için yardımcı fonksiyon
-export async function executeQuery(query: string, params: any[] = []) {
+export async function executeQuery(query: string, params: unknown[] = []) {
   try {
     return await prisma.$queryRawUnsafe(query, ...params);
   } catch (error) {

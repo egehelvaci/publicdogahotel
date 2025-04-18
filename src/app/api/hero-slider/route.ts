@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
+// Veritabanı sorgu sonucu tipi
+interface QueryResult<T> {
+  rows: T[];
+  rowCount: number;
+  client?: DbClient;
+}
+
+// Veritabanı istemci tipi
+interface DbClient {
+  query: (query: string, params?: unknown[]) => Promise<any>;
+  release: () => void;
+}
+
 // Slider veri tipi
-interface SliderItem {
+export interface SliderItem {
   id: string;
   titleTR: string;
   titleEN: string;
@@ -98,7 +111,7 @@ export async function POST(request: Request) {
       
       // Transaction başlat - doğru kullanım
       const beginResult = await executeQuery('BEGIN') as any;
-      client = beginResult.client;
+      client = beginResult.client as DbClient;
       
       // Client kontrolü
       if (!client) {
@@ -197,7 +210,7 @@ export async function POST(request: Request) {
           console.error('Rollback hatası:', rollbackError);
         }
       }
-      throw new Error(`Veritabanı işlemi hatası: ${dbError.message}`);
+      throw new Error(`Veritabanı işlemi hatası: ${dbError.message || 'Bilinmeyen hata'}`);
     }
   } catch (error) {
     console.error('Slider ekleme hatası:', error);
@@ -249,7 +262,7 @@ export async function PUT(request: Request) {
       console.log('Slider kontrolü yapılıyor, ID:', body.id);
       const checkResult = await executeQuery(checkQuery, [body.id]) as any;
       
-      if (checkResult.rows.length === 0) {
+      if (!checkResult.rows || checkResult.rows.length === 0) {
         console.log('Slider bulunamadı, ID:', body.id);
         return NextResponse.json(
           { success: false, message: 'Slider öğesi bulunamadı' },
@@ -261,7 +274,7 @@ export async function PUT(request: Request) {
       
       // Transaction başlat
       const beginResult = await executeQuery('BEGIN') as any;
-      client = beginResult.client;
+      client = beginResult.client as DbClient;
       
       if (!client) {
         console.error('Veritabanı client alınamadı');
@@ -357,7 +370,7 @@ export async function PUT(request: Request) {
         }
       }
       
-      throw new Error(`Veritabanı işlemi hatası: ${dbError.message}`);
+      throw new Error(`Veritabanı işlemi hatası: ${dbError.message || 'Bilinmeyen hata'}`);
     }
   } catch (error) {
     console.error('Slider güncelleme hatası:', error);
@@ -410,7 +423,7 @@ export async function DELETE(request: Request) {
       console.log('Slider kontrolü yapılıyor, ID:', id);
       const checkResult = await executeQuery(checkQuery, [id]) as any;
       
-      if (checkResult.rows.length === 0) {
+      if (!checkResult.rows || checkResult.rows.length === 0) {
         console.log('Slider bulunamadı, ID:', id);
         return NextResponse.json(
           { success: false, message: 'Slider öğesi bulunamadı' },
@@ -422,7 +435,7 @@ export async function DELETE(request: Request) {
 
       // Transaction başlat
       const beginResult = await executeQuery('BEGIN') as any;
-      client = beginResult.client;
+      client = beginResult.client as DbClient;
       
       if (!client) {
         console.error('Veritabanı client alınamadı');
@@ -498,7 +511,7 @@ export async function DELETE(request: Request) {
         }
       }
       
-      throw new Error(`Veritabanı işlemi hatası: ${dbError.message}`);
+      throw new Error(`Veritabanı işlemi hatası: ${dbError.message || 'Bilinmeyen hata'}`);
     }
   } catch (error) {
     console.error('Slider silme hatası:', error);

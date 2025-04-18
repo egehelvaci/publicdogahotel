@@ -143,7 +143,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
         <div className="container mx-auto px-4 flex justify-between items-center relative z-10">
           <div className="flex items-center">
             <Link href={`/${language}`} className="flex items-center transition-all duration-500 mr-3">
-              <div className="relative h-24 w-48 flex items-center justify-center rounded-lg overflow-hidden bg-white p-1 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg">
+              <div className="relative h-16 w-32 md:h-24 md:w-48 flex items-center justify-center rounded-lg overflow-hidden bg-white p-1 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg">
                 <Image 
                   src="/images/logo/dogahotellogo.jpg"
                   alt="Doğa Hotel Logo"
@@ -155,7 +155,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
               </div>
             </Link>
 
-            <div className="flex items-center">
+            <div className="hidden sm:flex items-center">
               <FaPhone className="text-white mr-2" />
               <a 
                 href="tel:02526166180" 
@@ -167,12 +167,12 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
           </div>
 
           {/* Desktop Menu */}
-          <nav className="hidden md:flex space-x-8">
+          <nav className="hidden md:flex space-x-4 lg:space-x-8">
             {menuItems.map((item, index) => (
               <Link 
                 key={index} 
                 href={item.path}
-                className={`font-medium transition-colors hover:text-white ${
+                className={`font-medium transition-colors hover:text-white text-sm lg:text-base ${
                   currentPath === item.path 
                     ? 'text-white font-semibold' 
                     : 'text-gray-200'
@@ -186,10 +186,10 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
             <div className="relative" ref={langMenuRef}>
               <button 
                 onClick={toggleLangMenu}
-                className="flex items-center transition-colors text-gray-200 hover:text-white"
+                className="flex items-center transition-colors text-gray-200 hover:text-white text-sm lg:text-base"
                 aria-label="Dil Seçimi"
               >
-                <div className="relative w-6 h-6 mr-2 rounded-full overflow-hidden border border-white/20">
+                <div className="relative w-5 h-5 lg:w-6 lg:h-6 mr-2 rounded-full overflow-hidden border border-white/20">
                   <Image 
                     src={languageOptions.find(lang => lang.code === language)?.flag || ''}
                     alt={language}
@@ -197,8 +197,9 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
                     className="object-cover"
                   />
                 </div>
-                <span>{languageOptions.find(lang => lang.code === language)?.name}</span>
-                <FaChevronDown className={`ml-1 text-xs transition-transform duration-300 ${isLangMenuOpen ? 'rotate-180' : ''}`} />
+                <span className="hidden lg:inline">{languageOptions.find(lang => lang.code === language)?.name}</span>
+                <span className="lg:hidden">{language.toUpperCase()}</span>
+                <FaChevronDown className="ml-1 w-3 h-3" />
               </button>
               
               {/* Dil Menü İçeriği */}

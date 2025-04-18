@@ -18,6 +18,7 @@ export interface GalleryItem {
   id: string;
   image: string;
   videoUrl?: string;
+  thumbnail?: string;
   title?: string;
   description?: string;
   order: number;
@@ -69,6 +70,7 @@ export async function fetchGalleryItems(): Promise<GalleryItem[]> {
       return staticGalleryImages.map((img, index) => ({
         id: `static-${index}`,
         image: img.path,
+        thumbnail: '',
         title: '',
         description: '',
         order: index,
@@ -87,12 +89,46 @@ export async function fetchGalleryItems(): Promise<GalleryItem[]> {
       return responseData.items
         .filter((item: any) => item !== null) // Null öğeleri filtrele
         .map((item: any) => {
+          // URL'leri doğru şekilde al
           const videoUrl = item.videoUrl || item.video_url || '';
+          const imageUrl = item.imageUrl || item.image_url || '';
+          const thumbnailUrl = item.thumbnailUrl || ''; // API'den gelen özel thumbnail
+          const isVideo = item.type === 'video' || videoUrl;
+          
+          // Video için thumbnail kontrolü
+          let finalThumbnailUrl = '';
+          if (isVideo) {
+            // Öncelik sırası: 
+            // 1. API'den gelen özel thumbnail
+            // 2. item.thumbnail
+            // 3. imageUrl (thumbnailUrl olmasa da kullanılabilir)
+            // 4. Varsayılan placeholder
+            if (thumbnailUrl) {
+              finalThumbnailUrl = thumbnailUrl;
+            } 
+            else if (item.thumbnail) {
+              finalThumbnailUrl = item.thumbnail;
+            } 
+            else if (imageUrl) {
+              finalThumbnailUrl = imageUrl;
+            }
+            else {
+              finalThumbnailUrl = '/images/placeholder.jpg'; // Video preview yerine placeholder kullan
+            }
+            
+            // Logla
+            console.log(`Video [${item.id}] | Thumbnail kaynağı: ${
+              thumbnailUrl ? 'API' : 
+              (item.thumbnail ? 'item.thumbnail' : 
+              (imageUrl ? 'imageUrl' : 'varsayılan'))
+            }, URL: ${finalThumbnailUrl}`);
+          }
           
           return {
             id: item.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
-            image: item.imageUrl || item.image_url || '',
+            image: imageUrl,
             videoUrl: videoUrl,
+            thumbnail: finalThumbnailUrl,
             title: item.titleTR || item.title_tr || item.title || '',
             description: item.descriptionTR || item.description_tr || item.description || '',
             order: item.orderNumber || item.order_number || item.order || 0,
@@ -111,6 +147,7 @@ export async function fetchGalleryItems(): Promise<GalleryItem[]> {
             id: item.id || `temp-${Math.random().toString(36).substring(2, 9)}`,
             image: item.imageUrl || item.image_url || '',
             videoUrl: item.videoUrl || item.video_url || '',
+            thumbnail: '',
             title: item.titleTR || item.title_tr || item.title || '',
             description: item.descriptionTR || item.description_tr || item.description || '',
             order: item.orderNumber || item.order_number || item.order || 0,
@@ -124,6 +161,7 @@ export async function fetchGalleryItems(): Promise<GalleryItem[]> {
       return staticGalleryImages.map((img, index) => ({
         id: `static-${index}`,
         image: img.path,
+        thumbnail: '',
         title: '',
         description: '',
         order: index,
@@ -138,6 +176,7 @@ export async function fetchGalleryItems(): Promise<GalleryItem[]> {
     return staticGalleryImages.map((img, index) => ({
       id: `static-${index}`,
       image: img.path,
+      thumbnail: '',
       title: '',
       description: '',
       order: index,

@@ -26,15 +26,18 @@ export async function GET() {
           CREATE TABLE IF NOT EXISTS about_sections (
             id TEXT PRIMARY KEY,
             title_tr TEXT NOT NULL,
-            title_en TEXT,
+            title_en TEXT NOT NULL,
             subtitle_tr TEXT,
             subtitle_en TEXT,
-            content_tr TEXT,
-            content_en TEXT,
+            content_tr TEXT NOT NULL,
+            content_en TEXT NOT NULL,
             image_url TEXT,
-            position INTEGER DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0,
+            show_on_home BOOLEAN NOT NULL DEFAULT true,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            badges_tr TEXT NOT NULL DEFAULT '',
+            badges_en TEXT NOT NULL DEFAULT ''
           )
         `;
         
@@ -55,10 +58,24 @@ export async function GET() {
         
         if (!columnExists.rows[0].exists) {
           // Sütun yoksa ekle
-          const addColumnQuery = `
-            ALTER TABLE about_sections 
-            ADD COLUMN ${column} TEXT DEFAULT ''
-          `;
+          let addColumnQuery;
+          
+          if (column === 'show_on_home') {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} BOOLEAN DEFAULT true
+            `;
+          } else if (column === 'position') {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} INTEGER DEFAULT 0
+            `;
+          } else {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} TEXT DEFAULT ''
+            `;
+          }
           
           await executeQuery(addColumnQuery);
           console.log(`Sütun eklendi: ${column}`);
@@ -78,6 +95,8 @@ export async function GET() {
         imageUrl: '',
         badgesTR: [],
         badgesEN: [],
+        position: 0,
+        showOnHome: true,
         heroImage: '',
         mainImage: ''
       });
@@ -96,6 +115,8 @@ export async function GET() {
         image_url as "imageUrl",
         COALESCE(badges_tr, '') as "badgesTR",
         COALESCE(badges_en, '') as "badgesEN",
+        position,
+        show_on_home as "showOnHome",
         created_at as "createdAt",
         updated_at as "updatedAt"
       FROM about_sections
@@ -130,6 +151,8 @@ export async function GET() {
         imageUrl: '',
         badgesTR: [],
         badgesEN: [],
+        position: 0,
+        showOnHome: true,
         heroImage: '',
         mainImage: ''
       });
@@ -226,15 +249,18 @@ export async function PUT(request: NextRequest) {
           CREATE TABLE IF NOT EXISTS about_sections (
             id TEXT PRIMARY KEY,
             title_tr TEXT NOT NULL,
-            title_en TEXT,
+            title_en TEXT NOT NULL,
             subtitle_tr TEXT,
             subtitle_en TEXT,
-            content_tr TEXT,
-            content_en TEXT,
+            content_tr TEXT NOT NULL,
+            content_en TEXT NOT NULL,
             image_url TEXT,
-            position INTEGER DEFAULT 1,
+            position INTEGER NOT NULL DEFAULT 0,
+            show_on_home BOOLEAN NOT NULL DEFAULT true,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            badges_tr TEXT NOT NULL DEFAULT '',
+            badges_en TEXT NOT NULL DEFAULT ''
           )
         `;
         
@@ -255,10 +281,24 @@ export async function PUT(request: NextRequest) {
         
         if (!columnExists.rows[0].exists) {
           // Sütun yoksa ekle
-          const addColumnQuery = `
-            ALTER TABLE about_sections 
-            ADD COLUMN ${column} TEXT DEFAULT ''
-          `;
+          let addColumnQuery;
+          
+          if (column === 'show_on_home') {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} BOOLEAN DEFAULT true
+            `;
+          } else if (column === 'position') {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} INTEGER DEFAULT 0
+            `;
+          } else {
+            addColumnQuery = `
+              ALTER TABLE about_sections 
+              ADD COLUMN ${column} TEXT DEFAULT ''
+            `;
+          }
           
           await executeQuery(addColumnQuery);
           console.log(`Sütun eklendi: ${column}`);
@@ -302,10 +342,11 @@ export async function PUT(request: NextRequest) {
           badges_tr,
           badges_en,
           position,
+          show_on_home,
           created_at, 
           updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 1, NOW(), NOW()
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
         )
         RETURNING *
       `;
@@ -320,7 +361,9 @@ export async function PUT(request: NextRequest) {
         contentEN || '',
         data.imageUrl || '',
         badgesTR || '',
-        badgesEN || ''
+        badgesEN || '',
+        data.position || 0,
+        data.showOnHome !== undefined ? data.showOnHome : true
       ]);
       
       console.log('Yeni about kaydı oluşturuldu');
@@ -340,8 +383,10 @@ export async function PUT(request: NextRequest) {
           image_url = $7,
           badges_tr = $8,
           badges_en = $9,
+          position = $10,
+          show_on_home = $11,
           updated_at = NOW()
-        WHERE id = $10
+        WHERE id = $12
         RETURNING *
       `;
       
@@ -355,6 +400,8 @@ export async function PUT(request: NextRequest) {
         data.imageUrl || '',
         badgesTR || '',
         badgesEN || '',
+        data.position !== undefined ? data.position : 0,
+        data.showOnHome !== undefined ? data.showOnHome : true,
         id
       ]);
       
@@ -373,6 +420,8 @@ export async function PUT(request: NextRequest) {
       imageUrl: result.rows[0].image_url,
       badgesTR: result.rows[0].badges_tr ? result.rows[0].badges_tr.split(",") : [],
       badgesEN: result.rows[0].badges_en ? result.rows[0].badges_en.split(",") : [],
+      showOnHome: result.rows[0].show_on_home,
+      position: result.rows[0].position,
       createdAt: result.rows[0].created_at,
       updatedAt: result.rows[0].updated_at,
       heroImage: result.rows[0].image_url,

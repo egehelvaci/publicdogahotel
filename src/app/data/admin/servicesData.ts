@@ -15,6 +15,7 @@ export interface ServiceItem {
   detailsEN: string[];
   image: string;
   images: string[];
+  gallery?: string[];
   icon: string; // Icon adı ('utensils', 'swimming-pool' vs.)
   active: boolean;
   order: number;
@@ -341,32 +342,63 @@ const getBaseUrl = (): string => {
 // Yeni servis ekle
 export async function addServiceItem(newItem: Omit<ServiceItem, 'id'>): Promise<ServiceItem | null> {
   try {
-    const response = await fetch(`${getBaseUrl()}/api/admin/services`, {
+    const baseUrl = getBaseUrl();
+    
+    // Gönderi verilerini hazırla
+    const serviceData = {
+      ...newItem,
+      id: uuidv4()
+    };
+    
+    console.log('Gönderilecek servis verisi:', JSON.stringify(serviceData, null, 2));
+    
+    // API endpoint'i slash ile bitmeli
+    const url = baseUrl + '/api/admin/services/';
+    
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...newItem,
-        id: uuidv4()
-      })
+      body: JSON.stringify(serviceData)
     });
     
+    console.log('API yanıtı durumu:', response.status, response.statusText);
+    
     if (!response.ok) {
-      throw new Error('Servis eklenirken hata oluştu');
+      const errorText = await response.text();
+      console.error('API yanıtı hata kodu:', response.status);
+      console.error('API yanıt içeriği:', errorText);
+      throw new Error(`Servis eklenirken hata oluştu: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
     
     if (data.success) {
       clearCache(); // Önbelleği temizle
-      return data.item;
+      
+      // WebSocket bildirimi gönder
+      try {
+        await fetch(`${baseUrl}/api/websocket/notify?topic=services`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ event: 'serviceAdded', id: data.id })
+        });
+      } catch (error) {
+        console.warn('WebSocket bildirimi gönderilemedi:', error);
+      }
+      
+      // API sadece id döndürdüğü için serviceData'yı id ile döndür
+      return {
+        ...serviceData,
+        id: data.id || serviceData.id
+      };
     } else {
-      return null;
+      throw new Error(data.message || 'Servis eklenemedi');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Servis ekleme hatası:', error);
-    return null;
+    throw error; // Hatayı yakalamak yerine fırlat
   }
 }
 

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { FaEdit, FaTrashAlt, FaPlus, FaArrowUp, FaArrowDown, FaGripLines, FaImage, FaVideo, FaSpinner, FaCheck, FaTimes } from 'react-icons/fa';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import MediaUploader from '../../../../components/ui/MediaUploader';
+import AdminLayout from '@/app/components/AdminLayout';
 
 interface GalleryItem {
   id: string;
@@ -15,6 +16,7 @@ interface GalleryItem {
   type: string;
   createdAt: string;
   updatedAt: string;
+  title?: string;
 }
 
 interface GalleryAdminClientProps {
@@ -222,229 +224,364 @@ export default function GalleryAdminClient({ lang }: GalleryAdminClientProps) {
     }
   };
 
-  // Kullanıcı arayüzü
-  return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">
-          {lang === 'tr' ? 'Galeri Yönetimi' : 'Gallery Management'}
-        </h1>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center"
-        >
-          <FaPlus className="mr-2" />
-          {lang === 'tr' ? 'Yeni Ekle' : 'Add New'}
-        </button>
+  // Video önizlemesini göster
+  const renderVideoThumbnail = (item: GalleryItem) => (
+    <div className="relative w-20 h-16 rounded overflow-hidden bg-gray-200">
+      <img 
+        src={item.imageUrl || "/images/gallery/video-preview.jpg"} 
+        alt="Video önizleme" 
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          console.log("Video thumbnail yüklenemedi, varsayılan kullanılıyor");
+          (e.target as HTMLImageElement).src = "/images/gallery/video-preview.jpg";
+        }}
+      />
+      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+        <FaVideo className="text-white text-base" />
       </div>
-      
-      {/* Hata mesajı */}
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-          {error}
-          <button
-            className="absolute top-0 bottom-0 right-0 px-4 py-3"
-            onClick={() => setError(null)}
-          >
-            <FaTimes />
-          </button>
-        </div>
-      )}
-      
-      {/* Yükleme başarılı mesajı */}
-      {uploadSuccess && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 flex items-center">
-          <FaCheck className="mr-2" />
-          {lang === 'tr' ? 'Medya başarıyla yüklendi!' : 'Media uploaded successfully!'}
-        </div>
-      )}
-      
-      {/* Yeni ekle formu */}
-      {showAddForm && (
-        <div className="bg-white shadow-md rounded-md p-6 mb-6">
-          <h2 className="text-lg font-medium mb-4">
-            {lang === 'tr' ? 'Yeni Medya Ekle' : 'Add New Media'}
-          </h2>
-          
-          <div className="mb-6">
-            <MediaUploader
-              onUpload={handleMediaUpload}
-              type="any"
-              folder="gallery"
-              label={lang === 'tr' ? 'Görsel veya Video Yükle' : 'Upload Image or Video'}
-              maxSizeMB={50}
-              apiEndpoint="/api/upload"
-            />
+    </div>
+  );
+
+  // Görsel önizlemesini göster
+  const renderImageThumbnail = (item: GalleryItem) => (
+    <div className="relative w-20 h-16 rounded overflow-hidden bg-gray-200">
+      <img 
+        src={item.imageUrl || '/images/placeholder.jpg'} 
+        alt="Galeri görseli" 
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          console.log("Görsel yüklenemedi, varsayılan kullanılıyor");
+          (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
+        }}
+      />
+    </div>
+  );
+
+  // Galeri öğesi gösterimi
+  const renderGalleryItem = (item: GalleryItem, index: number) => {
+    // Video öğesi ise
+    if (item.type === 'video' || item.videoUrl) {
+      return (
+        <div className="relative bg-white rounded-lg shadow-md overflow-hidden h-full flex flex-col">
+          {/* Video önizleme görüntüsü */}
+          <div className="w-full h-40 md:h-44 bg-gray-200 relative overflow-hidden">
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-300">
+              <img
+                src={item.imageUrl || "/images/gallery/video-preview.jpg"}
+                alt={`Video ${index + 1}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/images/gallery/video-preview.jpg";
+                }}
+              />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-12 h-12 bg-teal-600 bg-opacity-90 rounded-full flex items-center justify-center text-white">
+                <FaVideo className="text-lg" />
+              </div>
+            </div>
           </div>
           
-          {addingItem && (
-            <div className="flex items-center text-blue-600">
-              <FaSpinner className="animate-spin mr-2" />
-              {lang === 'tr' ? 'Ekleniyor...' : 'Adding...'}
+          {/* Öğe bilgileri */}
+          <div className="p-3 flex-grow flex flex-col justify-between">
+            <div>
+              <p className="font-medium text-gray-900 mb-1 truncate">
+                {item.title || `Video ${index + 1}`}
+              </p>
+              <p className="text-sm text-gray-500 truncate">
+                {new Date(item.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+            
+            {/* İşlem butonları */}
+            <div className="mt-2 flex justify-between">
+              <button
+                onClick={() => handleEditItem(item)}
+                className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+              >
+                <FaEdit className="mr-1" /> {lang === 'tr' ? 'Düzenle' : 'Edit'}
+              </button>
+              <button
+                onClick={() => openDeleteModal(item.id)}
+                className="text-red-600 hover:text-red-800 text-sm flex items-center"
+              >
+                <FaTrashAlt className="mr-1" /> {lang === 'tr' ? 'Sil' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Görsel öğesi ise
+    return (
+      <div className="relative bg-white rounded-lg shadow-md overflow-hidden h-full flex flex-col">
+        {/* Görsel önizleme */}
+        <div className="w-full h-40 md:h-44 bg-gray-200 relative">
+          {item.type === 'image' ? (
+            <div className="relative w-20 h-16 rounded overflow-hidden bg-gray-200">
+              <img 
+                src={item.imageUrl || '/images/placeholder.jpg'} 
+                alt="Galeri görseli"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
+                }}
+              />
+            </div>
+          ) : (
+            <div className="relative w-20 h-16 rounded overflow-hidden bg-gray-200">
+              <img 
+                src={item.imageUrl || "/images/gallery/video-preview.jpg"} 
+                alt="Video önizleme"
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/images/gallery/video-preview.jpg";
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                <FaVideo className="text-white text-base" />
+              </div>
             </div>
           )}
+        </div>
+        
+        {/* Öğe bilgileri */}
+        <div className="p-3 flex-grow flex flex-col justify-between">
+          <div>
+            <p className="font-medium text-gray-900 mb-1 truncate">
+              {item.title || `Görsel ${index + 1}`}
+            </p>
+            <p className="text-sm text-gray-500 truncate">
+              {new Date(item.createdAt).toLocaleDateString()}
+            </p>
+          </div>
           
-          <div className="flex justify-end mt-4">
+          {/* İşlem butonları */}
+          <div className="mt-2 flex justify-between">
             <button
-              type="button"
-              onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors mr-2"
-              disabled={addingItem}
+              onClick={() => handleEditItem(item)}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
             >
-              {lang === 'tr' ? 'İptal' : 'Cancel'}
+              <FaEdit className="mr-1" /> {lang === 'tr' ? 'Düzenle' : 'Edit'}
+            </button>
+            <button
+              onClick={() => openDeleteModal(item.id)}
+              className="text-red-600 hover:text-red-800 text-sm flex items-center"
+            >
+              <FaTrashAlt className="mr-1" /> {lang === 'tr' ? 'Sil' : 'Delete'}
             </button>
           </div>
         </div>
-      )}
-      
-      {/* Yükleme göstergesi */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <FaSpinner className="animate-spin text-teal-600 text-4xl" />
+      </div>
+    );
+  };
+
+  // Kullanıcı arayüzü
+  return (
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">
+            {lang === 'tr' ? 'Galeri Yönetimi' : 'Gallery Management'}
+          </h1>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-700 transition-colors flex items-center"
+          >
+            <FaPlus className="mr-2" />
+            {lang === 'tr' ? 'Yeni Ekle' : 'Add New'}
+          </button>
         </div>
-      ) : galleryItems.length === 0 ? (
-        <div className="bg-yellow-50 p-4 border border-yellow-200 rounded-md text-yellow-800 text-center">
-          {lang === 'tr' ? 'Henüz galeri öğesi eklenmemiş.' : 'No gallery items added yet.'}
-        </div>
-      ) : (
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="galleryItems">
-            {(provided) => (
-              <div
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                className="bg-white shadow-md rounded-md overflow-hidden"
-              >
-                {/* Tablo başlığı */}
-                <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200">
-                  <div className="col-span-1">#</div>
-                  <div className="col-span-2">{lang === 'tr' ? 'Görsel/Video' : 'Image/Video'}</div>
-                  <div className="col-span-2">{lang === 'tr' ? 'Tür' : 'Type'}</div>
-                  <div className="col-span-3">{lang === 'tr' ? 'Tarih' : 'Date'}</div>
-                  <div className="col-span-4 text-right">{lang === 'tr' ? 'İşlemler' : 'Actions'}</div>
-                </div>
-                
-                {/* Galeri öğeleri listesi */}
-                {galleryItems.map((item, index) => (
-                  <Draggable key={item.id} draggableId={item.id} index={index}>
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-200 hover:bg-gray-50 items-center"
-                      >
-                        {/* Sıra numarası ve sürükleme tutacağı */}
-                        <div className="col-span-1 flex items-center">
-                          <div {...provided.dragHandleProps} className="cursor-grab mr-2">
-                            <FaGripLines className="text-gray-400" />
-                          </div>
-                          <span>{item.orderNumber}</span>
-                        </div>
-                        
-                        {/* Görsel önizleme */}
-                        <div className="col-span-2">
-                          {item.type === 'image' && item.imageUrl ? (
-                            <div className="relative h-16 w-20 rounded overflow-hidden">
-                              <Image 
-                                src={item.imageUrl || '/images/placeholder.png'} 
-                                alt="Galeri görseli"
-                                fill
-                                sizes="80px"
-                                className="object-cover"
-                                unoptimized
-                                onError={(e) => {
-                                  console.log('Görsel yükleme hatası, placeholder kullanılıyor');
-                                  e.currentTarget.src = '/images/placeholder.png';
-                                }}
-                              />
-                            </div>
-                          ) : item.type === 'video' && item.videoUrl ? (
-                            <div className="flex items-center justify-center h-16 w-20 bg-gray-100 rounded">
-                              <FaVideo className="text-gray-500 text-xl" />
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center h-16 w-20 bg-gray-100 rounded">
-                              <FaImage className="text-gray-400 text-xl" />
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Tür */}
-                        <div className="col-span-2">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            item.type === 'image' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                          }`}>
-                            {item.type === 'image' 
-                              ? (lang === 'tr' ? 'Görsel' : 'Image') 
-                              : (lang === 'tr' ? 'Video' : 'Video')}
-                          </span>
-                        </div>
-                        
-                        {/* Tarih */}
-                        <div className="col-span-3 text-sm text-gray-600">
-                          {new Date(item.createdAt).toLocaleDateString(
-                            lang === 'tr' ? 'tr-TR' : 'en-US',
-                            { year: 'numeric', month: 'short', day: 'numeric' }
-                          )}
-                        </div>
-                        
-                        {/* İşlemler */}
-                        <div className="col-span-4 flex justify-end space-x-2">
-                          <button
-                            onClick={() => router.push(`/${lang}/admin/gallery/add`)}
-                            className="p-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
-                            title={lang === 'tr' ? 'Düzenle' : 'Edit'}
-                          >
-                            <FaEdit />
-                          </button>
-                          <button
-                            onClick={() => openDeleteModal(item.id)}
-                            className="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100"
-                            title={lang === 'tr' ? 'Sil' : 'Delete'}
-                          >
-                            <FaTrashAlt />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+        
+        {/* Hata mesajı */}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+            {error}
+            <button
+              className="absolute top-0 bottom-0 right-0 px-4 py-3"
+              onClick={() => setError(null)}
+            >
+              <FaTimes />
+            </button>
+          </div>
+        )}
+        
+        {/* Yükleme başarılı mesajı */}
+        {uploadSuccess && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4 flex items-center">
+            <FaCheck className="mr-2" />
+            {lang === 'tr' ? 'Medya başarıyla yüklendi!' : 'Media uploaded successfully!'}
+          </div>
+        )}
+        
+        {/* Yeni ekle formu */}
+        {showAddForm && (
+          <div className="bg-white shadow-md rounded-md p-6 mb-6">
+            <h2 className="text-lg font-medium mb-4">
+              {lang === 'tr' ? 'Yeni Medya Ekle' : 'Add New Media'}
+            </h2>
+            
+            <div className="mb-6">
+              <MediaUploader
+                onUpload={handleMediaUpload}
+                type="any"
+                folder="gallery"
+                label={lang === 'tr' ? 'Görsel veya Video Yükle' : 'Upload Image or Video'}
+                maxSizeMB={50}
+                apiEndpoint="/api/upload"
+              />
+            </div>
+            
+            {addingItem && (
+              <div className="flex items-center text-blue-600">
+                <FaSpinner className="animate-spin mr-2" />
+                {lang === 'tr' ? 'Ekleniyor...' : 'Adding...'}
               </div>
             )}
-          </Droppable>
-        </DragDropContext>
-      )}
-      
-      {/* Silme onayı modal'ı */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
-            <h3 className="text-lg font-medium mb-4">
-              {lang === 'tr' ? 'Öğeyi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this item?'}
-            </h3>
-            <p className="mb-4 text-gray-600">
-              {lang === 'tr' 
-                ? 'Bu işlem geri alınamaz ve öğe kalıcı olarak silinecektir.' 
-                : 'This action cannot be undone and the item will be permanently deleted.'}
-            </p>
-            <div className="flex justify-end space-x-2">
+            
+            <div className="flex justify-end mt-4">
               <button
-                onClick={closeDeleteModal}
-                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 transition-colors mr-2"
+                disabled={addingItem}
               >
                 {lang === 'tr' ? 'İptal' : 'Cancel'}
               </button>
-              <button
-                onClick={deleteItem}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-              >
-                {lang === 'tr' ? 'Evet, Sil' : 'Yes, Delete'}
-              </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+        
+        {/* Yükleme göstergesi */}
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <FaSpinner className="animate-spin text-teal-600 text-4xl" />
+          </div>
+        ) : galleryItems.length === 0 ? (
+          <div className="bg-yellow-50 p-4 border border-yellow-200 rounded-md text-yellow-800 text-center">
+            {lang === 'tr' ? 'Henüz galeri öğesi eklenmemiş.' : 'No gallery items added yet.'}
+          </div>
+        ) : (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="galleryItems">
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="bg-white shadow-md rounded-md overflow-hidden"
+                >
+                  {/* Tablo başlığı */}
+                  <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b border-gray-200">
+                    <div className="col-span-1">#</div>
+                    <div className="col-span-2">{lang === 'tr' ? 'Görsel/Video' : 'Image/Video'}</div>
+                    <div className="col-span-2">{lang === 'tr' ? 'Tür' : 'Type'}</div>
+                    <div className="col-span-3">{lang === 'tr' ? 'Tarih' : 'Date'}</div>
+                    <div className="col-span-4 text-right">{lang === 'tr' ? 'İşlemler' : 'Actions'}</div>
+                  </div>
+                  
+                  {/* Galeri öğeleri listesi */}
+                  {galleryItems.map((item, index) => (
+                    <Draggable key={item.id} draggableId={item.id} index={index}>
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className="grid grid-cols-12 gap-4 px-6 py-4 border-b border-gray-200 hover:bg-gray-50 items-center"
+                        >
+                          {/* Sıra numarası ve sürükleme tutacağı */}
+                          <div className="col-span-1 flex items-center">
+                            <div {...provided.dragHandleProps} className="cursor-grab mr-2">
+                              <FaGripLines className="text-gray-400" />
+                            </div>
+                            <span>{item.orderNumber}</span>
+                          </div>
+                          
+                          {/* Görsel önizleme */}
+                          <div className="col-span-2">
+                            {item.type === 'video' || item.videoUrl 
+                              ? renderVideoThumbnail(item)
+                              : renderImageThumbnail(item)
+                            }
+                          </div>
+                          
+                          {/* Tür */}
+                          <div className="col-span-2">
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              item.type === 'image' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {item.type === 'image' 
+                                ? (lang === 'tr' ? 'Görsel' : 'Image') 
+                                : (lang === 'tr' ? 'Video' : 'Video')}
+                            </span>
+                          </div>
+                          
+                          {/* Tarih */}
+                          <div className="col-span-3 text-sm text-gray-600">
+                            {new Date(item.createdAt).toLocaleDateString(
+                              lang === 'tr' ? 'tr-TR' : 'en-US',
+                              { year: 'numeric', month: 'short', day: 'numeric' }
+                            )}
+                          </div>
+                          
+                          {/* İşlemler */}
+                          <div className="col-span-4 flex justify-end space-x-2">
+                            <button
+                              onClick={() => router.push(`/${lang}/admin/gallery/add`)}
+                              className="p-2 bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                              title={lang === 'tr' ? 'Düzenle' : 'Edit'}
+                            >
+                              <FaEdit />
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(item.id)}
+                              className="p-2 bg-red-50 text-red-600 rounded hover:bg-red-100"
+                              title={lang === 'tr' ? 'Sil' : 'Delete'}
+                            >
+                              <FaTrashAlt />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        )}
+        
+        {/* Silme onayı modal'ı */}
+        {isDeleteModalOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-sm mx-auto">
+              <h3 className="text-lg font-medium mb-4">
+                {lang === 'tr' ? 'Öğeyi silmek istediğinize emin misiniz?' : 'Are you sure you want to delete this item?'}
+              </h3>
+              <p className="mb-4 text-gray-600">
+                {lang === 'tr' 
+                  ? 'Bu işlem geri alınamaz ve öğe kalıcı olarak silinecektir.' 
+                  : 'This action cannot be undone and the item will be permanently deleted.'}
+              </p>
+              <div className="flex justify-end space-x-2">
+                <button
+                  onClick={closeDeleteModal}
+                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
+                >
+                  {lang === 'tr' ? 'İptal' : 'Cancel'}
+                </button>
+                <button
+                  onClick={deleteItem}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  {lang === 'tr' ? 'Evet, Sil' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
   );
 }

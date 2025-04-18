@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const title = formData.get('title') as string;
     const description = formData.get('description') as string;
-    const type = formData.get('type') as string || 'image';
+    const fileType = formData.get('type') as string || 'image';
 
     if (!file) {
       console.error('Dosya bulunamadı');
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`Yüklenen dosya: ${file.name}, Boyut: ${file.size} bytes, Tip: ${file.type}`);
+    console.log(`Yüklenen dosya: ${file.name}, Boyut: ${file.size} bytes, Tip: ${file.type}, İstenen tip: ${fileType}`);
 
     // Dosya tipini doğrula
     const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];

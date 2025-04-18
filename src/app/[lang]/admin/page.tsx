@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { FaImage, FaBed, FaPhotoVideo, FaNewspaper, FaUtensils, FaInfoCircle } from 'react-icons/fa';
+import AdminLayout from '@/app/components/AdminLayout';
 
 interface AdminPageProps {
   params: Promise<{ lang: string }>;
@@ -62,7 +63,7 @@ export default function AdminPage({ params }: AdminPageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <AdminLayout>
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-4">
@@ -96,6 +97,6 @@ export default function AdminPage({ params }: AdminPageProps) {
           ))}
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 } 

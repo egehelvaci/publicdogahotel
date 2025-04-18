@@ -9,11 +9,32 @@ export interface GalleryItem {
   videoUrl?: string;
   video_url?: string; // Database field uyumu için
   title?: string;
+  titleTR?: string;
+  titleEN?: string;
   description?: string;
+  descriptionTR?: string;
+  descriptionEN?: string;
   order: number;
   order_number?: number; // Database field uyumu için
   type: 'image' | 'video';
   active?: boolean;
+  category?: string;
+  youtubeId?: string;
+}
+
+// YouTube video ID'sini URL'den çıkaran yardımcı fonksiyon
+export function extractYoutubeId(url: string): string | null {
+  if (!url) return null;
+  
+  // YouTube URL formatları:
+  // - https://www.youtube.com/watch?v=VIDEO_ID
+  // - https://youtu.be/VIDEO_ID
+  // - https://www.youtube.com/embed/VIDEO_ID
+  
+  const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+  const match = url.match(regExp);
+  
+  return (match && match[7].length === 11) ? match[7] : null;
 }
 
 // Tüm galeri öğelerini getirme API'si - Server Component'ler için

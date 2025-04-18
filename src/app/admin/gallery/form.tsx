@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FaUpload, FaSave, FaYoutube, FaPlay, FaVideo } from 'react-icons/fa';
 import toast from 'react-hot-toast';
-import { GalleryItem, extractYoutubeId } from '@/app/data/gallery';
+import { GalleryItem } from '@/app/data/gallery';
 import VideoThumbGenerator from '@/app/components/VideoThumbGenerator';
 
 interface GalleryFormProps {
@@ -143,9 +143,6 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
     setLoading(true);
 
     try {
-      // YouTube URL'sinden ID'yi çıkar
-      const youtubeId = formData.youtubeUrl ? extractYoutubeId(formData.youtubeUrl) : null;
-      
       // API isteği gelecekte eklenecek
       // Şimdilik başarılı olduğunu varsayalım
       
@@ -350,10 +347,12 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
                       <div className="aspect-video flex items-center justify-center cursor-pointer" onClick={toggleVideoPlay}>
                         {videoThumbnail ? (
                           <div className="relative w-full h-full">
-                            <img 
+                            <Image 
                               src={videoThumbnail} 
                               alt="Video önizleme" 
                               className="w-full h-full object-contain"
+                              width={640}
+                              height={360}
                             />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors">
                               <div className="bg-red-600 rounded-full p-4 text-white hover:bg-red-700 hover:scale-110 transition-all duration-300 shadow-lg">
@@ -389,7 +388,7 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
               )}
               
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700">YouTube Video URL'si</label>
+                <label className="block text-sm font-medium text-gray-700">YouTube Video URL&apos;si</label>
                 <div className="mt-1 flex">
                   <div className="relative flex-grow flex items-center">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -406,7 +405,7 @@ export default function GalleryForm({ initialData, isEditing = false }: GalleryF
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  Not: YouTube URL'si eklerseniz, video URL'si yerine bu kullanılacaktır.
+                  Not: YouTube URL&apos;si eklerseniz, video URL&apos;si yerine bu kullanılacaktır.
                 </p>
               </div>
             </>

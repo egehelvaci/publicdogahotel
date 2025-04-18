@@ -19,6 +19,7 @@ import {
   reorderRoomItems
 } from '../../../data/admin/roomsData';
 import useSocketNotifications from './useSocketNotifications';
+import AdminLayout from '@/app/components/AdminLayout';
 
 interface AdminRoomsPageProps {
   params: {
@@ -144,11 +145,11 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 p-8">
+      <AdminLayout>
         <div className="text-center text-xl font-semibold text-gray-700">
           {lang === 'tr' ? 'Yükleniyor...' : 'Loading...'}
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
@@ -196,7 +197,7 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <AdminLayout>
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
@@ -310,6 +311,6 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
           </div>
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 } 

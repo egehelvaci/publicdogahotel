@@ -6,7 +6,7 @@ import ImageKitImage from './ImageKitImage';
 import ImageKitVideo from './ImageKitVideo';
 
 interface MediaUploaderProps {
-  onUpload: (result: { url: string; fileId: string; fileType: string }) => void;
+  onUpload: (result: { url: string; fileId: string; fileType: string; thumbnailUrl?: string }) => void;
   initialUrl?: string;
   type?: 'image' | 'video' | 'any';
   maxSizeMB?: number;
@@ -33,6 +33,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
   const [errorText, setErrorText] = useState(errorMessage);
   const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [fileType, setFileType] = useState<'image' | 'video'>(initialUrl?.match(/\.(mp4|webm|mov)$/i) ? 'video' : 'image');
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -91,12 +92,43 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       setPreviewUrl(objectUrl);
       setFileType(isVideo ? 'video' : 'image');
       
+      // Video ise thumbnail oluştur
+      let thumbnailFile: File | null = null;
+      let thumbnailUrl: string = '';
+      
+      if (isVideo) {
+        try {
+          console.log(`Video için thumbnail oluşturuluyor: ${file.name}`);
+          // Video'dan thumbnail oluştur
+          thumbnailUrl = await generateVideoThumbnail(file);
+          
+          // Thumbnail başarıyla oluşturuldu mu kontrol et
+          if (thumbnailUrl && thumbnailUrl.startsWith('data:image/')) {
+            // Thumbnail'i dosyaya dönüştür
+            const thumbFilename = `thumbnail_${new Date().getTime()}.jpg`;
+            thumbnailFile = dataURLtoFile(thumbnailUrl, thumbFilename);
+            console.log(`Video thumbnail oluşturuldu: ${thumbFilename}, boyut: ${thumbnailFile.size} bytes`);
+          } else {
+            console.warn("Oluşturulan thumbnail geçerli değil, atlanıyor");
+          }
+        } catch (thumbError) {
+          console.error("Video thumbnail oluşturma hatası:", thumbError);
+          // Thumbnail oluşturulamazsa devam et
+        }
+      }
+      
       // FormData oluştur
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
       
-      console.log('Dosya yükleniyor:', file.name, 'klasör:', folder);
+      // Eğer thumbnail oluşturulduysa ekle
+      if (thumbnailFile && thumbnailFile.size > 0) {
+        console.log(`Thumbnail eklenecek: ${thumbnailFile.name}, boyut: ${thumbnailFile.size} bytes`);
+        formData.append('thumbnailFile', thumbnailFile);
+      }
+      
+      console.log('Dosya yükleniyor:', file.name, 'klasör:', folder, 'thumbnail:', !!thumbnailFile);
       
       // API'ye yükle
       const response = await fetch(apiEndpoint, {
@@ -106,7 +138,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       
       // Yanıtı önce text olarak al
       const responseText = await response.text();
-      console.log('API yanıt (raw):', responseText);
+      console.log('API yanıt (raw):', responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
       
       // JSON'a çevirmeyi dene
       let result;
@@ -114,7 +146,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
         result = JSON.parse(responseText);
       } catch (error) {
         console.error('JSON ayrıştırma hatası:', error);
-        throw new Error(`Geçersiz API yanıtı: ${responseText}`);
+        throw new Error(`Geçersiz API yanıtı: ${responseText.substring(0, 100)}...`);
       }
       
       // API yanıt formatını kontrol et
@@ -138,28 +170,32 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
       const fileName = result.fileName || '';
       const fileUrl = result.url;
       const fileTypeFromResponse = result.fileType || (isVideo ? 'video' : 'image');
+      const thumbUrl = result.thumbnailUrl || '';
       
       console.log('Dosya başarıyla yüklendi:', {
         url: fileUrl,
-        fileId: fileName,
-        fileType: fileTypeFromResponse
+        fileType: fileTypeFromResponse,
+        thumbnailUrl: thumbUrl || thumbnailUrl || 'Yok'
       });
       
       // Başarılı yükleme - handler'ı çağır
       onUpload({
         url: fileUrl,
         fileId: fileName,
-        fileType: fileTypeFromResponse
+        fileType: fileTypeFromResponse,
+        thumbnailUrl: thumbUrl || thumbnailUrl || undefined
       });
       
       // Önizleme URL'sini güncelle
       setPreviewUrl(fileUrl);
+      setThumbnailUrl(thumbUrl || thumbnailUrl || undefined);
     } catch (error) {
       console.error('Yükleme hatası:', error);
       setIsError(true);
       setErrorText(error instanceof Error ? error.message : 'Dosya yüklenirken bir hata oluştu');
       // Hata durumunda önizlemeyi temizle
       setPreviewUrl('');
+      setThumbnailUrl(null);
       
       // Tarayıcı konsoluna daha detaylı hata mesajı
       if (error instanceof Error) {
@@ -201,10 +237,98 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
   // Önizlemeyi temizle
   const clearPreview = () => {
     setPreviewUrl('');
+    setThumbnailUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
     onUpload({ url: '', fileId: '', fileType: '' });
+  };
+  
+  /**
+   * Video'dan thumbnail oluştur
+   */
+  const generateVideoThumbnail = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log("Video'dan thumbnail oluşturuluyor...");
+        // Video elementi oluştur
+        const videoElement = document.createElement('video');
+        videoElement.preload = 'metadata';
+        videoElement.muted = true;
+        videoElement.playsInline = true;
+        
+        // Video dosyası için URL oluştur
+        const videoUrl = URL.createObjectURL(file);
+        videoElement.src = videoUrl;
+        
+        // Video metadata yüklendiğinde
+        videoElement.onloadedmetadata = () => {
+          // Video'nun ilk 3 saniyesine git (genellikle en iyi thumbnail için)
+          videoElement.currentTime = Math.min(3, videoElement.duration / 4);
+        };
+        
+        // Video belirtilen zamana gittikten sonra
+        videoElement.onseeked = () => {
+          try {
+            // Canvas üzerinde video frame'ini yakala
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) {
+              reject("Canvas context oluşturulamadı");
+              return;
+            }
+            
+            // Video frame'ini canvas'a çiz
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Canvas içeriğini data URL'e dönüştür (JPEG formatında)
+            const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Video URL'ini temizle
+            URL.revokeObjectURL(videoUrl);
+            
+            console.log("Video thumbnail başarıyla oluşturuldu");
+            resolve(thumbnailDataUrl);
+          } catch (error) {
+            console.error("Thumbnail oluşturma hatası:", error);
+            reject(error);
+          }
+        };
+        
+        // Video işleme hatası
+        videoElement.onerror = (e) => {
+          console.error("Video işleme hatası:", e);
+          URL.revokeObjectURL(videoUrl);
+          reject("Video işlenemedi");
+        };
+        
+        // Video yükleme başlatma
+        videoElement.load();
+      } catch (error) {
+        console.error("Video thumbnail oluşturma hatası:", error);
+        reject(error);
+      }
+    });
+  };
+  
+  /**
+   * Data URL'ini file nesnesine dönüştür
+   */
+  const dataURLtoFile = (dataURL: string, filename: string): File => {
+    const arr = dataURL.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    return new File([u8arr], filename, { type: mime });
   };
   
   return (
@@ -255,21 +379,21 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
           </div>
           
           {fileType === 'image' ? (
-            <ImageKitImage
+            <img
               src={previewUrl}
               alt="Önizleme"
-              width={300}
-              height={200}
               className="w-full object-cover"
             />
           ) : (
-            <ImageKitVideo
+            <video
               src={previewUrl}
               controls
-              width={300}
-              height={200}
               className="w-full"
-            />
+              poster={thumbnailUrl || undefined}
+            >
+              <source src={previewUrl} type="video/mp4" />
+              Tarayıcınız video etiketini desteklemiyor.
+            </video>
           )}
           
           {/* Dosya türü göstergesi */}

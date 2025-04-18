@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 
+// Client arayüzü tanımlaması
+interface DbClient {
+  query: (query: string, params?: unknown[]) => Promise<unknown>;
+  release: () => void;
+}
+
+interface ExecuteQueryResult {
+  rows?: unknown[];
+  rowCount?: number;
+  client?: DbClient;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -14,8 +26,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Transaction başlat
-    const beginResult = await executeQuery('BEGIN');
-    const client = beginResult.client as any;
+    const beginResult = await executeQuery('BEGIN') as ExecuteQueryResult;
+    const client = beginResult.client as DbClient;
     
     try {
       // Her bir öğe için sıra numarasını güncelle

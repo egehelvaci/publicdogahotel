@@ -1,66 +1,112 @@
 import { Server, Socket } from 'socket.io'; // Import Socket type
 import http from 'http';
+import { NextRequest, NextResponse } from 'next/server';
+import { IncomingMessage } from 'http';
 
 // WebSocket sunucusu (Use Server type)
 let io: Server | null = null;
 
+// Aktif istemcileri tutacağımız dizi
+const clients: {
+  id: string;
+  res: any;
+  topic: string;
+}[] = [];
+
 // WebSocket bağlantı işleyicisi (Remove unused req)
-export function GET() {
-  if (!io) {
-    // Socket.io sunucusu oluşturulması
-    const server = http.createServer();
-    io = new Server(server, {
-      cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-      }
-    });
+export function GET(req: NextRequest) {
+  const topic = req.nextUrl.searchParams.get('topic') || 'all';
+  const clientId = Math.random().toString(36).substring(2, 15);
 
-    // Bağlantı dinleyicisi (Use Socket type)
-    io.on('connection', (socket: Socket) => {
-      console.log('Yeni bir istemci bağlandı:', socket.id);
-
-      // Bağlantı kesildi
-      socket.on('disconnect', () => {
-        console.log('İstemci bağlantısı kesildi:', socket.id);
+  // Server-Sent Events (SSE) için yanıt başlıkları
+  const response = new NextResponse(new ReadableStream({
+    start(controller) {
+      // Yeni istemci ekle
+      clients.push({
+        id: clientId,
+        res: controller,
+        topic
       });
-    });
 
-    // Sunucuyu başlat
-    server.listen(3001, () => {
-      console.log('WebSocket sunucusu 3001 portunda başlatıldı');
-    });
-  }
+      // Bağlantıyı açık tutmak için düzenli ping gönderimi
+      const pingInterval = setInterval(() => {
+        try {
+          controller.enqueue('data: ping\n\n');
+        } catch (e) {
+          // İstemci bağlantıyı kapattıysa
+          clearInterval(pingInterval);
+          clients.splice(clients.findIndex(client => client.id === clientId), 1);
+        }
+      }, 30000);
 
-  // HTTP yanıtı döndür
-  return new Response('WebSocket API aktif', {
-    status: 200,
-    headers: {
-      'Content-Type': 'text/plain',
+      // İstemciye bağlantı kurulduğunu bildir
+      controller.enqueue('data: {"event":"connected","clientId":"' + clientId + '"}\n\n');
     },
+    cancel() {
+      // İstemciyi kaldır
+      const index = clients.findIndex(client => client.id === clientId);
+      if (index !== -1) {
+        clients.splice(index, 1);
+      }
+    },
+  }), {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    },
+  });
+
+  return response;
+}
+
+// Odalar güncellendiğinde istemcilere bildir
+export function notifyRoomsUpdated(data?: any) {
+  broadcastToTopic('rooms', JSON.stringify({
+    event: 'roomsUpdated',
+    data: data || { timestamp: Date.now() }
+  }));
+}
+
+// Servisler güncellendiğinde istemcilere bildir
+export function notifyServicesUpdated(data?: any) {
+  broadcastToTopic('services', JSON.stringify({
+    event: 'servicesUpdated',
+    data: data || { timestamp: Date.now() }
+  }));
+}
+
+// Galeri güncellendiğinde istemcilere bildir
+export function notifyGalleryUpdated(data?: any) {
+  broadcastToTopic('gallery', JSON.stringify({
+    event: 'galleryUpdated',
+    data: data || { timestamp: Date.now() }
+  }));
+}
+
+// Tüm istemcilere mesaj gönder
+export function broadcastToAll(message: string) {
+  clients.forEach(client => {
+    try {
+      client.res.enqueue(`data: ${message}\n\n`);
+    } catch (e) {
+      // Bu istemci artık mevcut değil, siliyoruz
+      clients.splice(clients.indexOf(client), 1);
+    }
   });
 }
 
-// Odalar güncellendiğinde bildirim gönderen yardımcı fonksiyon
-export function notifyRoomsUpdated() {
-  if (io) {
-    io.emit('rooms-updated', { timestamp: new Date().toISOString() });
-  }
-  console.log('Odalar güncellendi, WebSocket bildirimi gönderildi');
-}
-
-// Belirli bir oda güncellendiğinde bildirim gönderen yardımcı fonksiyon
-export function notifyRoomUpdated(roomId: string) {
-  if (io) {
-    io.emit('room-updated', { roomId, timestamp: new Date().toISOString() });
-  }
-  console.log(`Oda güncellendi (${roomId}), WebSocket bildirimi gönderildi`);
-}
-
-// Galeri güncellendiğinde bildirim gönderen yardımcı fonksiyon
-export function notifyGalleryUpdated() {
-  if (io) {
-    io.emit('gallery-updated', { timestamp: new Date().toISOString() });
-  }
-  console.log('Galeri güncellendi, WebSocket bildirimi gönderildi');
+// Belirli bir konuyu dinleyen istemcilere mesaj gönder
+export function broadcastToTopic(topic: string, message: string) {
+  // Hem ilgili konuyu hem de 'all' konusunu dinleyen istemcilere gönder
+  clients.forEach(client => {
+    if (client.topic === topic || client.topic === 'all') {
+      try {
+        client.res.enqueue(`data: ${message}\n\n`);
+      } catch (e) {
+        // Bu istemci artık mevcut değil, siliyoruz
+        clients.splice(clients.indexOf(client), 1);
+      }
+    }
+  });
 }

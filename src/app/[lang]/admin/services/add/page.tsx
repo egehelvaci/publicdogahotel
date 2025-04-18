@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FaSave, FaTimes, FaPlusCircle, FaUpload, FaTrash, FaStar } from 'react-icons/fa';
-import Image from 'next/image';
+import { FaSave, FaTimes, FaPlusCircle } from 'react-icons/fa';
 import AdminNavbar from '../../../../components/AdminNavbar';
 import { addServiceItem, getIconOptions } from '../../../../data/admin/servicesData';
 
@@ -14,10 +13,12 @@ type PageProps = {
 };
 
 export default function AddServicePage({ params }: PageProps) {
-  const { lang } = params;
+  // Next.js 15'te params artık Promise olduğu için React.use() ile unwrap ediyoruz
+  const resolvedParams = React.use(params);
+  const lang = resolvedParams.lang;
+  
   const router = useRouter();
   const iconOptions = getIconOptions();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     titleTR: '',
@@ -26,14 +27,11 @@ export default function AddServicePage({ params }: PageProps) {
     descriptionEN: '',
     detailsTR: [''],
     detailsEN: [''],
-    image: '',
-    images: [] as string[],
     icon: 'utensils',
     active: true,
   });
   
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<{url: string, isMain: boolean}[]>([]);
@@ -89,113 +87,6 @@ export default function AddServicePage({ params }: PageProps) {
     });
   };
 
-  // Görsel yükleme işleyicisi
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    setUploading(true);
-    setError(null);
-    
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('folder', 'services');
-        
-        const response = await fetch('/api/admin/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (!response.ok) {
-          throw new Error(lang === 'tr' ? 'Dosya yüklenemedi' : 'File upload failed');
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          // Yeni görsel eklendiğinde
-          const isFirstImage = uploadedImages.length === 0;
-          setUploadedImages(prev => [...prev, {
-            url: data.filePath,
-            isMain: isFirstImage
-          }]);
-          
-          // State'i de güncelle
-          if (isFirstImage) {
-            setFormData(prev => ({
-              ...prev,
-              image: data.filePath, // İlk görsel ana görsel olur
-              images: [...prev.images, data.filePath]
-            }));
-          } else {
-            setFormData(prev => ({
-              ...prev,
-              images: [...prev.images, data.filePath]
-            }));
-          }
-        }
-      }
-      
-      // Input'u temizle
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (err: any) {
-      setError(err.message || 'Dosya yüklenirken bir hata oluştu');
-      console.error('Dosya yükleme hatası:', err);
-    } finally {
-      setUploading(false);
-    }
-  };
-  
-  // Ana görsel olarak işaretle
-  const setAsMainImage = (url: string) => {
-    setUploadedImages(prev => prev.map(img => ({
-      ...img,
-      isMain: img.url === url
-    })));
-    
-    setFormData(prev => ({
-      ...prev,
-      image: url
-    }));
-  };
-  
-  // Görseli kaldır
-  const removeImage = (url: string) => {
-    const isMainImage = uploadedImages.find(img => img.url === url)?.isMain;
-    
-    // Görseli listeden kaldır
-    setUploadedImages(prev => {
-      const filtered = prev.filter(img => img.url !== url);
-      
-      // Eğer silinen ana görsel ise ve başka görseller varsa
-      if (isMainImage && filtered.length > 0) {
-        filtered[0].isMain = true; // İlk görseli ana görsel yap
-        
-        // Ana görsel state'ini güncelle
-        setFormData(prev => ({
-          ...prev,
-          image: filtered[0].url
-        }));
-      }
-      
-      return filtered;
-    });
-    
-    // Form verisinden de kaldır
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter(img => img !== url),
-      // Eğer ana görsel siliniyorsa ve başka görsel yoksa
-      ...(isMainImage && uploadedImages.length <= 1 ? { image: '' } : {})
-    }));
-  };
-
   // Form gönderme
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,25 +104,39 @@ export default function AddServicePage({ params }: PageProps) {
         throw new Error(lang === 'tr' ? 'Başlık alanları zorunludur' : 'Title fields are required');
       }
       
+      // Debug - gönderilecek veriyi logla
+      console.log('Gönderilecek servis verisi:', JSON.stringify({
+        ...formData,
+        detailsTR: filteredDetailsTR,
+        detailsEN: filteredDetailsEN,
+        image: '',  // Görsel boş bırakılıyor
+        images: []  // Görsel galerisi boş bırakılıyor
+      }, null, 2));
+      
       // Servis ekle
       const newService = await addServiceItem({
         ...formData,
         detailsTR: filteredDetailsTR,
         detailsEN: filteredDetailsEN,
+        image: '',  // Boş resim alanı
+        images: []  // Boş galeri
       });
       
-      if (newService) {
-        setSuccess(lang === 'tr' ? 'Hizmet başarıyla eklendi' : 'Service added successfully');
-        // 2 saniye sonra listeye geri dön
+      if (newService && newService.id) {
+        setSuccess(lang === 'tr' 
+          ? 'Hizmet başarıyla eklendi. Görselleri eklemek için galeri düzenleme sayfasına yönlendiriliyorsunuz.' 
+          : 'Service added successfully. You are being redirected to the gallery editing page.');
+        
+        // 2 saniye sonra galeri düzenleme sayfasına yönlendir
         setTimeout(() => {
-          router.push(`/${lang}/admin/services`);
+          router.push(`/${lang}/admin/services/gallery/${newService.id}`);
         }, 2000);
       } else {
         throw new Error(lang === 'tr' ? 'Hizmet eklenirken bir hata oluştu' : 'Error while adding service');
       }
     } catch (err: any) {
-      setError(err.message || 'Bir hata oluştu');
       console.error('Form gönderim hatası:', err);
+      setError(err.message || (lang === 'tr' ? 'Bir hata oluştu' : 'An error occurred'));
     } finally {
       setLoading(false);
     }
@@ -348,109 +253,19 @@ export default function AddServicePage({ params }: PageProps) {
                     </div>
                   </div>
                   
-                  {/* Ana Görsel ve Galeri Bölümü */}
+                  {/* Ana Görsel ve Galeri bölümü kaldırıldı */}
                   <div className="sm:col-span-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {lang === 'tr' ? 'Hizmet Görselleri' : 'Service Images'}
-                    </label>
-                    
-                    <div className="flex flex-col space-y-4">
-                      {/* Görsel Yükleme Alanı */}
-                      <div className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                        <div className="mb-4 text-center">
-                          <FaUpload className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-                          <p className="text-gray-700 mb-2">
-                            {lang === 'tr' ? 'Görselleri buraya sürükleyin veya' : 'Drag and drop your images here or'}
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                      <div className="flex">
+                        <div className="ml-3">
+                          <p className="text-sm text-yellow-700">
+                            {lang === 'tr' 
+                              ? 'Hizmet oluşturulduktan sonra görselleri ekleyebilirsiniz. Kaydetme işlemi sonrası otomatik olarak galeri düzenleme sayfasına yönlendirileceksiniz.' 
+                              : 'You can add images after creating the service. You will be automatically redirected to the gallery editing page after saving.'}
                           </p>
-                          <label htmlFor="file-upload" className="relative cursor-pointer rounded-md font-medium text-teal-600 hover:text-teal-500 focus-within:outline-none">
-                            <span>{lang === 'tr' ? 'dosya seçin' : 'browse files'}</span>
-                            <input
-                              id="file-upload"
-                              ref={fileInputRef}
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              className="sr-only"
-                              onChange={handleFileUpload}
-                              disabled={uploading}
-                            />
-                          </label>
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {lang === 'tr'
-                            ? 'PNG, JPG, GIF veya WEBP formatları desteklenir. Maksimum dosya boyutu 5MB.'
-                            : 'PNG, JPG, GIF or WEBP formats are supported. Maximum file size 5MB.'}
-                        </p>
-                        
-                        {uploading && (
-                          <div className="mt-2 flex items-center">
-                            <div className="w-4 h-4 border-2 border-t-teal-500 border-teal-500 rounded-full animate-spin mr-2"></div>
-                            <span className="text-sm text-gray-500">
-                              {lang === 'tr' ? 'Yükleniyor...' : 'Uploading...'}
-                            </span>
-                          </div>
-                        )}
                       </div>
-                      
-                      {/* Yüklenen Görseller */}
-                      {uploadedImages.length > 0 && (
-                        <div className="mt-4">
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">
-                            {lang === 'tr' ? 'Yüklenen Görseller' : 'Uploaded Images'}
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {uploadedImages.map((img, index) => (
-                              <div 
-                                key={index} 
-                                className={`relative rounded-lg overflow-hidden border-2 ${img.isMain ? 'border-teal-500 ring-2 ring-teal-500' : 'border-gray-200'}`}
-                              >
-                                <div className="aspect-square relative">
-                                  <Image
-                                    src={img.url}
-                                    alt={`Görsel ${index + 1}`}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                </div>
-                                <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                                  <div className="flex space-x-2">
-                                    {!img.isMain && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setAsMainImage(img.url)}
-                                        className="p-1 bg-teal-500 text-white rounded hover:bg-teal-600"
-                                        title={lang === 'tr' ? 'Ana görsel yap' : 'Set as main image'}
-                                      >
-                                        <FaStar />
-                                      </button>
-                                    )}
-                                    <button
-                                      type="button"
-                                      onClick={() => removeImage(img.url)}
-                                      className="p-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                      title={lang === 'tr' ? 'Görseli kaldır' : 'Remove image'}
-                                    >
-                                      <FaTrash />
-                                    </button>
-                                  </div>
-                                </div>
-                                {img.isMain && (
-                                  <div className="absolute top-0 left-0 bg-teal-500 text-white text-xs px-2 py-1 rounded-br">
-                                    {lang === 'tr' ? 'Ana Görsel' : 'Main Image'}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
-                    
-                    <p className="mt-2 text-xs text-gray-500">
-                      {lang === 'tr' 
-                        ? 'İlk yüklenen görsel otomatik olarak ana görsel olarak seçilir. Görsellerin üzerine gelerek ana görseli değiştirebilir veya görselleri kaldırabilirsiniz.' 
-                        : 'The first uploaded image is automatically selected as the main image. You can change the main image or remove images by hovering over them.'}
-                    </p>
                   </div>
                 </div>
               </div>

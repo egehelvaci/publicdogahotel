@@ -3,24 +3,18 @@ import { Metadata } from 'next';
 import { getDictionary } from '@/app/dictionaries';
 import GalleryPage from './GalleryPage';
 
-export const metadata: Metadata = {
-  title: 'Galeri | Doğa Tatil Evi',
-  description: 'Doğa Tatil Evi\'nin güzel mekanlarını, havuzunu, bahçesini ve çevresini keşfedin. Tatil evinizde sizi bekleyen manzaralardan enstantaneler.',
-}
-
-export default async function GalleryPageServer({ params }: { params: { lang: string } }) {
-  // params'ı await etmemiz gerekiyor
-  const resolvedParams = await params;
-  const lang = resolvedParams.lang || 'tr';
-  
-  // Sözlük verilerini al
+export async function generateMetadata({ params }: { params: { lang: string } }): Promise<Metadata> {
+  const { lang } = params;
   const dictionary = await getDictionary(lang);
   
-  return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-grow">
-        <GalleryPage lang={lang} />
-      </main>
-    </div>
-  );
+  return {
+    title: 'Doğa Hotel - Galeri',
+    description: 'Doğa Hotel Fethiye Ölüdeniz Galeri - Otel odaları, bahçe, havuz ve daha fazla fotoğraf ve videolar.',
+  };
+}
+
+export default function GalleryPageWrapper({ params }: { params: { lang: string } }) {
+  const { lang } = params;
+  // Client tarafı bileşenine veriler aktarılıyor
+  return <GalleryPage lang={lang} />;
 } 

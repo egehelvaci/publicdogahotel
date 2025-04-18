@@ -6,11 +6,11 @@ import Link from 'next/link';
 import { FaEdit, FaTrashAlt, FaEye, FaPlus, FaGripVertical, FaArrowUp, FaArrowDown, FaSave, FaArrowLeft } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import { toast } from 'react-hot-toast';
-import AdminHeader from '@/app/components/admin/AdminHeader';
 import { getAllSliderData, deleteSliderItem, reorderSliderItems, SliderItem } from '@/app/data/admin/sliderData';
 import ImageKitImage from '@/components/ui/ImageKitImage';
 import ImageKitVideo from '@/components/ui/ImageKitVideo';
 import Modal from '@/components/ui/Modal';
+import AdminLayout from '@/app/components/AdminLayout';
 
 interface HeroSliderPageProps {
   params: {
@@ -119,19 +119,11 @@ export default function HeroSliderPage({ params }: HeroSliderPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <AdminHeader title="Hero Slider Yönetimi" />
-      
+    <AdminLayout>
       <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Hero Slider Yönetimi</h1>
           <div className="flex items-center gap-3">
-            <Link 
-              href={`/${lang}/admin`}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 flex items-center"
-            >
-              <FaArrowLeft className="mr-2" /> Admin Panele Dön
-            </Link>
             <Link 
               href={`/${lang}/admin/hero-slider/add`}
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
@@ -338,6 +330,6 @@ export default function HeroSliderPage({ params }: HeroSliderPageProps) {
           </div>
         </div>
       </Modal>
-    </div>
+    </AdminLayout>
   );
 }

@@ -7,7 +7,11 @@ import {
   FaPhone, 
   FaEnvelope, 
   FaPaperPlane,
-  FaWhatsapp
+  FaWhatsapp,
+  FaFacebookF,
+  FaInstagram,
+  FaTwitter,
+  FaClock
 } from 'react-icons/fa';
 
 type ContactPageProps = {
@@ -38,172 +42,167 @@ export default function ContactPage({ lang }: ContactPageProps) {
   const googleMapsUrl = `https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d804.8824308656936!2d${mapLocation.longitude}!3d${mapLocation.latitude}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0xd1c67d86bf2fa3a0!2zMzbCsDM0JzMwLjQiTiAyOcKwMDknMTIuNSJF!5e0!3m2!1str!2str!4v1705235678901!5m2!1str!2str`;
   
   return (
-    <>
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-amber-800 via-amber-700 to-amber-900 py-32 overflow-hidden" style={{paddingTop: "7rem"}}>
-        <div className="absolute inset-0 bg-pattern opacity-10"></div>
+      <section className="relative w-full bg-gradient-to-r from-blue-800 to-teal-700 h-[30vh] sm:h-[40vh] md:h-[50vh] overflow-hidden flex items-center justify-center">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0" style={{ backgroundImage: 'url("/images/pattern-dots.png")', backgroundSize: '30px' }}></div>
+        </div>
         
-        {/* Dekoratif elemanlar */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-white opacity-5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-200 opacity-5 rounded-full translate-x-1/2 translate-y-1/2 blur-3xl"></div>
-        
-        {/* Animasyonlu background dekorları */}
-        <motion.div 
-          className="absolute left-10 top-10 w-20 h-20 bg-amber-300 rounded-full opacity-10 blur-xl"
-          animate={{ 
-            x: [0, 50, 0],
-            y: [0, 30, 0],
-          }}
-          transition={{ 
-            repeat: Infinity,
-            duration: 15,
-            ease: "easeInOut"
-          }}
-        />
-        
-        <motion.div 
-          className="absolute right-20 bottom-20 w-32 h-32 bg-amber-400 rounded-full opacity-10 blur-xl"
-          animate={{ 
-            x: [0, -70, 0],
-            y: [0, -40, 0],
-          }}
-          transition={{ 
-            repeat: Infinity,
-            duration: 18,
-            ease: "easeInOut"
-          }}
-        />
-        
-        <div className="container mx-auto px-4 text-center relative z-10">
+        <div className="container mx-auto px-4 relative z-10 text-center">
           <motion.h1 
+            className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 drop-shadow-lg"
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight drop-shadow-lg"
+            transition={{ duration: 0.7 }}
           >
-            {language === 'tr' ? 'İletişime Geçin' : 'Get in Touch'}
+            {language === 'tr' ? 'İletişim' : 'Contact Us'}
           </motion.h1>
+          <motion.div 
+            className="w-16 sm:w-24 h-1 bg-white mx-auto mb-6"
+            initial={{ width: 0 }}
+            animate={{ width: 96 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+          ></motion.div>
           <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-xl text-amber-50 max-w-3xl mx-auto mb-8 drop-shadow-md"
           >
             {language === 'tr' 
-              ? 'Soru, görüş ve talepleriniz için bizimle iletişime geçin.' 
-              : 'Contact us for your questions, comments, and requests.'}
+              ? 'Sorularınız ve rezervasyonlarınız için bizimle iletişime geçin.' 
+              : 'Get in touch with us for your questions and reservations.'}
           </motion.p>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="flex justify-center"
-          >
-            <a 
-              href={`https://wa.me/${contactInfo.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(language === 'tr' ? 'Merhaba, Rezarvasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="glass-button relative inline-flex items-center px-8 py-3 group hover:bg-green-600/30 transition-all duration-300 backdrop-blur-sm"
-            >
-              <span className="relative z-10 text-white group-hover:text-white transition-colors duration-300">
-                {language === 'tr' ? 'WhatsApp ile Yazın' : 'Chat on WhatsApp'} <FaWhatsapp className="inline ml-2" />
-              </span>
-            </a>
-          </motion.div>
         </div>
       </section>
-      
-      {/* Contact Information */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-xl p-8 shadow-lg flex flex-col items-center text-center"
-            >
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                <FaMapMarkerAlt className="text-amber-600 text-2xl" />
+
+      {/* Content Section */}
+      <section className="py-12 md:py-20 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+            {/* Contact Info */}
+            <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+              <div className="mb-8">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+                  {language === 'tr' ? 'İletişim Bilgileri' : 'Contact Information'}
+                </h2>
+                <div className="h-1 w-20 bg-teal-600 mb-6"></div>
+                <p className="text-gray-600 mb-8">
+                  {language === 'tr' 
+                    ? 'Bize aşağıdaki kanallardan ulaşabilirsiniz.' 
+                    : 'You can reach us through the following channels.'}
+                </p>
+
+                <div className="space-y-6">
+                  <div className="flex items-start group relative">
+                    <div className="bg-teal-100 rounded-full p-3 text-teal-600 mr-4">
+                      <FaMapMarkerAlt size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-800 mb-1">
+                        {language === 'tr' ? 'Adres' : 'Address'}
+                      </h3>
+                      <p className="text-gray-600 text-sm md:text-base">
+                        {contactInfo.address || 
+                          (language === 'tr' 
+                            ? 'Kemerağzı Mah. Lara Cad. No:213 Muratpaşa/Antalya' 
+                            : 'Kemerağzı District, Lara Street No:213 Muratpaşa/Antalya')}
+                      </p>
+                      <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center text-teal-600 hover:text-teal-700 text-sm font-medium transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        {language === 'tr' ? 'Yol Tarifi Al' : 'Get Directions'} 
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="bg-teal-100 rounded-full p-3 text-teal-600 mr-4">
+                      <FaPhone size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-800 mb-1">
+                        {language === 'tr' ? 'Telefon' : 'Phone'}
+                      </h3>
+                      <p className="text-gray-600 text-sm md:text-base">
+                        {contactInfo.phone || '+90 252 616 61 80'}
+                      </p>
+                      <a 
+                        href={`https://wa.me/${contactInfo.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(language === 'tr' ? 'Merhaba, bilgi almak istiyorum.' : 'Hello, I would like to get information.')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center text-green-600 hover:text-green-700 text-sm font-medium transition-colors"
+                      >
+                        <FaWhatsapp className="mr-1" size={16} />
+                        {language === 'tr' ? 'WhatsApp ile İletişim' : 'Contact via WhatsApp'}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="bg-teal-100 rounded-full p-3 text-teal-600 mr-4">
+                      <FaEnvelope size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-800 mb-1">
+                        {language === 'tr' ? 'E-posta' : 'Email'}
+                      </h3>
+                      <p className="text-gray-600 text-sm md:text-base">
+                        {contactInfo.email || 'info@dogahotel.com'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start">
+                    <div className="bg-teal-100 rounded-full p-3 text-teal-600 mr-4">
+                      <FaClock size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-800 mb-1">
+                        {language === 'tr' ? 'Çalışma Saatleri' : 'Working Hours'}
+                      </h3>
+                      <p className="text-gray-600 text-sm md:text-base">
+                        {language === 'tr' ? 'Haftanın her günü 24 saat' : '24/7, all days of the week'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <h3 className="font-medium text-gray-800 mb-3">
+                    {language === 'tr' ? 'Bizi Takip Edin' : 'Follow Us'}
+                  </h3>
+                  <div className="flex space-x-4">
+                    <a 
+                      href="https://www.facebook.com/share/1AotxqFG16/?mibextid=wwXIfr" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-600 p-3 rounded-full transition-all"
+                    >
+                      <FaFacebookF size={18} />
+                    </a>
+                    <a 
+                      href="https://www.instagram.com/dogahotel_oludeniz?igsh=bGNlbm5kazEyanB4" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="bg-gray-100 hover:bg-teal-100 text-gray-600 hover:text-teal-600 p-3 rounded-full transition-all"
+                    >
+                      <FaInstagram size={18} />
+                    </a>
+                  </div>
+                </div>
               </div>
-              <h3 className="text-xl font-bold mb-2">{language === 'tr' ? 'Adres' : 'Address'}</h3>
-              <p className="text-gray-600">{contactInfo.address}</p>
-              <a 
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(contactInfo.address)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-amber-600 mt-4 inline-flex items-center hover:text-amber-700"
-              >
-                {language === 'tr' ? 'Yol Tarifi Al' : 'Get Directions'} <FaPaperPlane className="ml-1 text-sm" />
-              </a>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="bg-white rounded-xl p-8 shadow-lg flex flex-col items-center text-center"
-            >
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                <FaPhone className="text-amber-600 text-2xl" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">{language === 'tr' ? 'Telefon' : 'Phone'}</h3>
-              <a 
-                href={`tel:${contactInfo.phone}`}
-                className="text-gray-600 hover:text-amber-600"
-              >
-                {contactInfo.phone}
-              </a>
-              <a 
-                href={`https://wa.me/${contactInfo.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(language === 'tr' ? 'Merhaba, Rezarvasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-amber-600 mt-4 inline-flex items-center hover:text-amber-700"
-              >
-                {language === 'tr' ? 'WhatsApp' : 'WhatsApp'} <FaWhatsapp className="ml-1" />
-              </a>
-            </motion.div>
-            
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-white rounded-xl p-8 shadow-lg flex flex-col items-center text-center md:col-span-2 lg:col-span-1"
-            >
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
-                <FaEnvelope className="text-amber-600 text-2xl" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">{language === 'tr' ? 'E-posta' : 'E-mail'}</h3>
-              <a 
-                href={`mailto:${contactInfo.email}`}
-                className="text-gray-600 hover:text-amber-600"
-              >
-                {contactInfo.email}
-              </a>
-              <p className="text-gray-500 text-sm mt-4">
-                {language === 'tr' 
-                  ? '7/24 hizmetinizdeyiz' 
-                  : 'We are at your service 24/7'}
-              </p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-      
-      {/* Map Section */}
-      <section className="pb-20">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white rounded-xl p-6 shadow-xl"
-          >
-            <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">
-              {language === 'tr' ? 'Konum' : 'Location'}
-            </h2>
-            <div className="relative w-full h-[500px] rounded-lg overflow-hidden">
+            </div>
+
+            {/* Map */}
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden h-[400px] md:h-auto">
               <iframe 
                 src={googleMapsUrl}
                 width="100%" 
@@ -215,9 +214,9 @@ export default function ContactPage({ lang }: ContactPageProps) {
                 title="Doğa Hotel Konum"
               ></iframe>
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
-    </>
+    </div>
   );
 } 

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { executeQuery } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,6 +10,12 @@ export interface RoomType {
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Veritabanı sorgu sonucu tipi
+interface QueryResult<T> {
+  rows: T[];
+  rowCount: number;
 }
 
 // GET - Tüm oda tiplerini getir
@@ -25,7 +31,7 @@ export async function GET() {
         updated_at as "updatedAt"
       FROM room_types
       ORDER BY name_tr
-    `) as any;
+    `) as QueryResult<RoomType>;
 
     return NextResponse.json({
       success: true,
@@ -68,7 +74,14 @@ export async function POST(request: Request) {
       ) VALUES (
         $1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *
-    `, [id, body.nameTR, body.nameEN, body.active !== undefined ? body.active : true]) as any;
+    `, [id, body.nameTR, body.nameEN, body.active !== undefined ? body.active : true]) as QueryResult<{
+      id: string;
+      name_tr: string;
+      name_en: string;
+      active: boolean;
+      created_at: Date;
+      updated_at: Date;
+    }>;
 
     return NextResponse.json(
       { 
