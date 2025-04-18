@@ -1,5 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import slugify from 'slugify';
+import { v4 as uuidv4 } from 'uuid';
 
 // Tebi.io için konfigürasyon
 // Tebi, S3, FTP/FTPS ve DataStream protokollerini destekler
@@ -57,136 +58,226 @@ const getS3Client = () => {
   }
 };
 
-// Dosyayı Tebi.io'ya yükleme - sadece sunucu tarafında çalışır
-export async function uploadToTebi(params: {
+interface TebiConfig {
+  endpoint: string;
+  region: string;
+  accessKey: string;
+  secretKey: string;
+  bucket: string;
+}
+
+interface TebiUploadParams {
   file: File;
   maxSizeInBytes?: number;
   checkFileType?: boolean;
   allowedFileTypes?: string[];
-  path: string;
-}): Promise<{ success: boolean; fileUrl: string; message?: string }> {
-  const { file, maxSizeInBytes, checkFileType, allowedFileTypes, path } = params;
+  path?: string;
+}
 
-  // Ortam değişkenlerini kontrol et
-  const apiKey = process.env.TEBI_API_KEY;
-  const masterKey = process.env.TEBI_MASTER_KEY;
-  const bucket = process.env.TEBI_BUCKET;
+interface TebiUploadResponse {
+  success: boolean;
+  fileUrl?: string;
+  message?: string;
+}
 
-  console.log('Tebi Yükleme: Yapılandırma kontrol ediliyor', { 
-    apiKeyExists: !!apiKey, 
-    masterKeyExists: !!masterKey,
-    bucket
-  });
+// Tebi.io S3 konfigürasyon parametreleri
+const tebiConfig: TebiConfig = {
+  endpoint: process.env.TEBI_ENDPOINT || 'https://s3.tebi.io',
+  region: process.env.TEBI_REGION || 'global',
+  accessKey: process.env.TEBI_ACCESS_KEY || '',
+  secretKey: process.env.TEBI_SECRET_KEY || '',
+  bucket: process.env.TEBI_BUCKET || 'dogahotel'
+};
 
-  if (!apiKey || !masterKey || !bucket) {
-    console.error('Tebi Yükleme: Eksik ortam değişkenleri', { 
-      apiKeyExists: !!apiKey, 
-      masterKeyExists: !!masterKey, 
-      bucketExists: !!bucket 
-    });
-    return {
-      success: false,
-      fileUrl: '',
-      message: 'Depolama servisi yapılandırması eksik. Lütfen yöneticinize başvurun.'
-    };
-  }
+/**
+ * AWS S3 API için bir isteğin imzalanması için gereken bilgileri hazırlar
+ */
+function prepareRequest(
+  method: string,
+  uri: string,
+  headers: Record<string, string>,
+  body: ArrayBuffer | null = null
+) {
+  // HTTP metodu kontrol edilir
+  method = method.toUpperCase();
+  
+  // AWS imzalama algoritması için gerekli parametreler
+  const service = 's3';
+  const algorithm = 'AWS4-HMAC-SHA256';
+  
+  // Tarih ve zaman bilgileri
+  const now = new Date();
+  const amzdate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
+  const datestamp = amzdate.slice(0, 8);
+  
+  // Sorgu parametrelerini ve URI'yi hazırla
+  const url = new URL(uri);
+  const canonical_uri = url.pathname;
+  const host = url.host;
+  
+  // Sorgu parametrelerini sırala
+  const canonical_querystring = [...url.searchParams.entries()]
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join('&');
+  
+  // İmzalanacak header'ları hazırla
+  const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
+  
+  // Request gövdesi için hash hesapla
+  const payloadHash = body ? 
+    Array.from(new Uint8Array(crypto.subtle.digestSync('SHA-256', body)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('') :
+    'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // Empty string hash
+  
+  // Header'ları hazırla
+  headers['host'] = host;
+  headers['x-amz-date'] = amzdate;
+  headers['x-amz-content-sha256'] = payloadHash;
+  
+  // Canonical istekte kullanılacak header'ları sırala
+  const canonical_headers = Object.entries(headers)
+    .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
+    .map(([key, value]) => `${key.toLowerCase()}:${value}\n`)
+    .join('');
+  
+  // Canonical istek oluştur
+  const canonical_request = [
+    method,
+    canonical_uri,
+    canonical_querystring,
+    canonical_headers,
+    signedHeaders,
+    payloadHash
+  ].join('\n');
+  
+  // Canonical isteğin hash değerini hesapla
+  const canonicalRequestHash = Array.from(new Uint8Array(crypto.subtle.digestSync('SHA-256', new TextEncoder().encode(canonical_request))))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  // İmzalanacak stringi oluştur
+  const credentialScope = `${datestamp}/${tebiConfig.region}/${service}/aws4_request`;
+  const stringToSign = [
+    algorithm,
+    amzdate,
+    credentialScope,
+    canonicalRequestHash
+  ].join('\n');
+  
+  // İmzalama anahtarını hesapla
+  const kDate = crypto.subtle.digestSync(
+    'SHA-256',
+    new TextEncoder().encode('AWS4' + tebiConfig.secretKey)
+  );
+  
+  const kRegion = crypto.subtle.digestSync(
+    'SHA-256',
+    Buffer.concat([Buffer.from(kDate), Buffer.from(tebiConfig.region)])
+  );
+  
+  const kService = crypto.subtle.digestSync(
+    'SHA-256',
+    Buffer.concat([Buffer.from(kRegion), Buffer.from(service)])
+  );
+  
+  const kSigning = crypto.subtle.digestSync(
+    'SHA-256',
+    Buffer.concat([Buffer.from(kService), Buffer.from('aws4_request')])
+  );
+  
+  // İmzayı hesapla
+  const signature = crypto.subtle.digestSync(
+    'SHA-256',
+    Buffer.concat([Buffer.from(kSigning), Buffer.from(stringToSign, 'utf8')])
+  );
+  
+  const signatureHex = Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  
+  // Yetkilendirme header'ını oluştur
+  const authorizationHeader = `${algorithm} Credential=${tebiConfig.accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signatureHex}`;
+  
+  // Son header'ları döndür
+  return {
+    ...headers,
+    'Authorization': authorizationHeader
+  };
+}
 
-  // Dosya boyutunu kontrol et
-  if (maxSizeInBytes && file.size > maxSizeInBytes) {
-    const maxSizeMB = Math.round(maxSizeInBytes / (1024 * 1024));
-    return {
-      success: false,
-      fileUrl: '',
-      message: `Dosya boyutu çok büyük. Maksimum dosya boyutu: ${maxSizeMB}MB`
-    };
-  }
-
-  // Dosya türünü kontrol et
-  if (checkFileType && allowedFileTypes && allowedFileTypes.length > 0) {
-    const fileType = file.name.split('.').pop()?.toLowerCase() || '';
-    if (!allowedFileTypes.includes(fileType)) {
+/**
+ * Tebi.io'ya dosya yüklemek için kullanılan fonksiyon
+ */
+export async function uploadToTebi({
+  file,
+  maxSizeInBytes = 10 * 1024 * 1024, // Varsayılan 10MB
+  checkFileType = false,
+  allowedFileTypes = [],
+  path = 'dogahotel'
+}: TebiUploadParams): Promise<TebiUploadResponse> {
+  try {
+    // 1. Dosya boyutu kontrolü
+    if (file.size > maxSizeInBytes) {
       return {
         success: false,
-        fileUrl: '',
-        message: `Desteklenmeyen dosya türü. İzin verilen dosya türleri: ${allowedFileTypes.join(', ')}`
+        message: `Dosya boyutu çok büyük. Maksimum dosya boyutu: ${Math.round(maxSizeInBytes / (1024 * 1024))}MB`
       };
     }
-  }
-
-  // Dosya adını temizle
-  const fileName = slugify(file.name, {
-    replacement: '_',
-    lower: true,
-    strict: true,
-    trim: true
-  });
-
-  try {
-    // Dosyanın içerik türünü belirle
-    let contentType = file.type;
-    if (!contentType || contentType === 'application/octet-stream') {
-      const extension = fileName.split('.').pop()?.toLowerCase();
-      contentType = extension ? getMimeType(extension) : 'application/octet-stream';
-    }
-
-    console.log('Tebi Yükleme: Dosya bilgileri', { 
-      fileName, 
-      contentType, 
-      fileSize: file.size, 
-      uploadPath: path 
-    });
-
-    // S3 istemcisini yapılandır
-    const s3Client = new S3Client({
-      region: 'auto',
-      endpoint: `https://s3.tebi.io`,
-      credentials: {
-        accessKeyId: apiKey,
-        secretAccessKey: masterKey
+    
+    // 2. Dosya tipi kontrolü (etkinleştirilmişse)
+    if (checkFileType && allowedFileTypes.length > 0) {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || '';
+      if (!allowedFileTypes.includes(fileExtension)) {
+        return {
+          success: false,
+          message: `Desteklenmeyen dosya türü. İzin verilen türler: ${allowedFileTypes.join(', ')}`
+        };
       }
-    });
-
-    const fullPath = `${path}/${fileName}`;
-    console.log(`Tebi Yükleme: Dosya yükleniyor... Tam yol: ${fullPath}`);
-
-    // Dosyayı ArrayBuffer'a dönüştür
+    }
+    
+    // 3. Dosya içeriğini buffer'a dönüştür
     const arrayBuffer = await file.arrayBuffer();
-    const bodyBuffer = Buffer.from(arrayBuffer);
-
-    // S3 komutunu oluştur
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: fullPath,
-      Body: bodyBuffer,
-      ContentType: contentType
-    });
-
-    // Dosyayı yükle
-    console.log('Tebi Yükleme: S3 komutu çalıştırılıyor...');
-    console.log('Tebi Yükleme: Kullanılan Kimlik Bilgileri:', {
-      bucket: bucket,
-      apiKey: apiKey.substring(0, 5) + '...' + apiKey.substring(apiKey.length - 5),
-      masterKeyLength: masterKey.length,
-      endpoint: `https://s3.tebi.io`
+    
+    // 4. Benzersiz dosya adı oluştur
+    const uniqueFileName = `${path}/${uuidv4()}-${file.name.replace(/\s+/g, '-')}`;
+    
+    // 5. API endpoint'i oluştur
+    const putObjectUrl = `${tebiConfig.endpoint}/${tebiConfig.bucket}/${uniqueFileName}`;
+    
+    // 6. İstek header'larını oluştur
+    const headers: Record<string, string> = {
+      'Content-Type': file.type || 'application/octet-stream',
+      'Content-Length': file.size.toString()
+    };
+    
+    // 7. AWS S3 API istekleri için imzalama
+    const signedHeaders = prepareRequest('PUT', putObjectUrl, headers, arrayBuffer);
+    
+    // 8. PUT isteği ile dosyayı yükle
+    const response = await fetch(putObjectUrl, {
+      method: 'PUT',
+      headers: signedHeaders,
+      body: arrayBuffer
     });
     
-    const response = await s3Client.send(command);
-    console.log('Tebi Yükleme: S3 yanıtı alındı', response);
-
-    // Başarılı yanıt oluştur
-    const fileUrl = `https://${bucket}.s3.tebi.io/${fullPath}`;
-    console.log(`Tebi Yükleme: Başarılı! URL: ${fileUrl}`);
-
+    // 9. Yanıtı kontrol et
+    if (!response.ok) {
+      console.error('Tebi yükleme hatası:', response.status, response.statusText);
+      throw new Error(`Yükleme başarısız: ${response.status} ${response.statusText}`);
+    }
+    
+    // 10. Başarılı yanıt döndür
     return {
       success: true,
-      fileUrl
+      fileUrl: `https://${tebiConfig.bucket}.${tebiConfig.endpoint.replace('https://', '')}/${uniqueFileName}`
     };
   } catch (error) {
-    console.error('Tebi Yükleme: Hata oluştu', error);
+    console.error('Tebi yükleme hatası:', error);
     return {
       success: false,
-      fileUrl: '',
-      message: error instanceof Error ? error.message : 'Dosya yükleme sırasında beklenmeyen bir hata oluştu'
+      message: `Dosya yüklenirken bir hata oluştu: ${(error as Error).message}`
     };
   }
 }
@@ -266,4 +357,27 @@ function getMimeType(extension: string): string {
   };
   
   return contentTypes[extension] || 'application/octet-stream';
+}
+
+// Buffer polyfill (browser/node.js uyumluluğu için)
+class Buffer {
+  static concat(arrays: ArrayBuffer[]): ArrayBuffer {
+    const totalLength = arrays.reduce((acc, arr) => acc + arr.byteLength, 0);
+    const result = new Uint8Array(totalLength);
+    
+    let offset = 0;
+    for (const arr of arrays) {
+      result.set(new Uint8Array(arr), offset);
+      offset += arr.byteLength;
+    }
+    
+    return result.buffer;
+  }
+  
+  static from(input: ArrayBuffer | string): ArrayBuffer {
+    if (typeof input === 'string') {
+      return new TextEncoder().encode(input).buffer;
+    }
+    return input;
+  }
 } 

@@ -1,10 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from '@prisma/client';
 
-// Global PrismaClient örneği için typescript tipi tanımla
+// PrismaClient örneğini global olarak tanımla
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// Mevcut global örneği al veya yeni oluştur
+// Geliştirme ortamında birden fazla Prisma örneği oluşturulmasını önle
 export const prisma = globalForPrisma.prisma || new PrismaClient();
 
-// Geliştirme modunda global örneği kaydet (hot reload problemini çözer)
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma; 
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+
+// Varsayılan olarak prisma nesnesini dışa aktar
+export default prisma; 
