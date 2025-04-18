@@ -1,7 +1,7 @@
 import React from 'react';
 import AboutPage from './AboutPage';
 import { AboutData } from '../../../app/data/about';
-import { executeQuery } from '@/lib/db';
+import { executeQuery } from '../../../lib/db';
 
 // Veritabanından about verilerini getir
 async function getAboutData(): Promise<AboutData> {

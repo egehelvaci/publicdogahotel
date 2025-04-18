@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '../../../../lib/prisma';
 
 // Dynamic API route
 export const dynamic = 'force-dynamic';
