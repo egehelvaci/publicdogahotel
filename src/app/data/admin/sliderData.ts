@@ -624,4 +624,102 @@ function getDefaultSliderData(): SliderItem[] {
   }
   
   return defaultItems;
-} 
+}
+
+// Slider ekleme fonksiyonu
+export const addSlider = async (data: Partial<SliderItem>): Promise<SliderItem | null> => {
+  try {
+    const response = await fetch('/api/hero-slider', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API hatası: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      return result.item;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Slider ekleme hatası:', error);
+    throw error;
+  }
+};
+
+// Slider getirme fonksiyonu (ID'ye göre)
+export const getSliderById = async (id: string): Promise<SliderItem | null> => {
+  try {
+    const response = await fetch(`/api/hero-slider/${id}`);
+    
+    if (!response.ok) {
+      throw new Error(`API hatası: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      return result.item;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Slider getirme hatası:', error);
+    throw error;
+  }
+};
+
+// Slider güncelleme fonksiyonu
+export const updateSlider = async (id: string, data: Partial<SliderItem>): Promise<SliderItem | null> => {
+  try {
+    const response = await fetch(`/api/hero-slider/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API hatası: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      return result.item;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Slider güncelleme hatası:', error);
+    throw error;
+  }
+};
+
+// Slider silme fonksiyonu
+export const deleteSlider = async (id: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/hero-slider/${id}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`API hatası: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    return result.success;
+  } catch (error) {
+    console.error('Slider silme hatası:', error);
+    throw error;
+  }
+}; 
