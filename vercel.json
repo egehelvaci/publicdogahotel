@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm install --legacy-peer-deps && npm install typescript --save-dev --legacy-peer-deps && next build",
+  "buildCommand": "npm install --legacy-peer-deps && npm install typescript postcss-selector-parser@6.0.10 --save-dev --legacy-peer-deps && next build",
   "installCommand": "npm install --legacy-peer-deps",
   "framework": "nextjs",
   "outputDirectory": ".next",
