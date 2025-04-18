@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '../../../../../lib/db';
-import { v4 as uuidv4 } from 'uuid';
-import prisma from '../../../../../lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 // Dynamic API route
 export const dynamic = 'force-dynamic';
@@ -10,17 +8,16 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // Tüm galeri öğelerini getir ve sırala
-    const query = `
-      SELECT * FROM gallery
-      ORDER BY order_number ASC
-    `;
-    
-    const result = await executeQuery(query) as any;
-    
+    const galleryItems = await prisma.gallery.findMany({
+      orderBy: {
+        orderNumber: 'asc',
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Galeri öğeleri başarıyla alındı',
-      items: result.rows,
+      items: galleryItems,
     });
   } catch (error) {
     console.error('Galeri öğeleri alınırken hata:', error);
@@ -129,38 +126,18 @@ export async function POST(request: NextRequest) {
     const nextOrder = await getNextOrderNumber();
     
     // Yeni galeri öğesi ekle
-    const insertQuery = `
-      INSERT INTO gallery (
-        id,
-        title_tr,
-        title_en,
-        description_tr,
-        description_en,
-        image_url,
-        video_url,
-        type,
-        order_number,
-        created_at,
-        updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      ) RETURNING *
-    `;
-
-    const insertValues = [
-      itemData.id || uuidv4(),
-      itemData.titleTR || '',
-      itemData.titleEN || '',
-      itemData.descriptionTR || '',
-      itemData.descriptionEN || '',
-      itemData.imageUrl,
-      itemData.videoUrl,
-      itemData.type,
-      nextOrder
-    ];
-
-    const result = await executeQuery(insertQuery, insertValues) as any;
-    const newGalleryItem = result.rows[0];
+    const newGalleryItem = await prisma.gallery.create({
+      data: {
+        titleTR: itemData.titleTR || '',
+        titleEN: itemData.titleEN || '',
+        descriptionTR: itemData.descriptionTR || '',
+        descriptionEN: itemData.descriptionEN || '',
+        imageUrl: itemData.imageUrl,
+        videoUrl: itemData.videoUrl,
+        type: itemData.type,
+        orderNumber: nextOrder,
+      },
+    });
     
     console.log('Yeni galeri öğesi oluşturuldu:', newGalleryItem);
     
@@ -186,35 +163,20 @@ export async function POST(request: NextRequest) {
 // Sıralama işlemini yönetir
 async function handleReorder(body: { items: Array<{ id: string; orderNumber: number }> }) {
   try {
-    // Transaction başlat
-    const client = await (await executeQuery('BEGIN') as any).client;
-    
-    try {
-      // Her bir öğe için sıralama güncelle
-      for (const item of body.items) {
-        const updateQuery = `
-          UPDATE gallery
-          SET order_number = $1, updated_at = CURRENT_TIMESTAMP
-          WHERE id = $2
-        `;
-        
-        await client.query(updateQuery, [item.orderNumber, item.id]);
-      }
-      
-      // Transaction'ı tamamla
-      await client.query('COMMIT');
-      
-      return NextResponse.json({
-        success: true,
-        message: 'Sıralama başarıyla güncellendi',
+    // Paralel işlemler için Promise.all kullanıyoruz
+    const updates = body.items.map((item) => {
+      return prisma.gallery.update({
+        where: { id: item.id },
+        data: { orderNumber: item.orderNumber },
       });
-    } catch (error) {
-      // Hata durumunda geri al
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
+    
+    await Promise.all(updates);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Sıralama başarıyla güncellendi',
+    });
   } catch (error) {
     console.error('Sıralama güncellenirken hata:', error);
     return NextResponse.json(
@@ -230,12 +192,13 @@ async function handleReorder(body: { items: Array<{ id: string; orderNumber: num
 
 // Bir sonraki sıra numarasını belirler
 async function getNextOrderNumber(): Promise<number> {
-  const query = `
-    SELECT COALESCE(MAX(order_number), 0) + 1 as next_order FROM gallery
-  `;
+  const result = await prisma.gallery.aggregate({
+    _max: {
+      orderNumber: true,
+    },
+  });
   
-  const result = await executeQuery(query) as any;
-  return result.rows[0].next_order;
+  return (result._max.orderNumber || 0) + 1;
 }
 
 // Note: We will need POST, PUT, DELETE handlers here later

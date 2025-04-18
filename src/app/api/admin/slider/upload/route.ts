@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToImageKit } from '../../../../../lib/imagekit';
+import { uploadToImageKit } from '@/lib/imagekit';
 
 export const dynamic = 'force-dynamic';
 
