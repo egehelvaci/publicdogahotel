@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '@/lib/tebi';
+import { uploadToTebi } from '../../../lib/tebi';
 
 // Dynamic API - Önbelleğe alınmasını engeller
 export const dynamic = 'force-dynamic';

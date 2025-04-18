@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { isImageKitUrl, transformVideo } from '@/lib/imagekit';
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { isImageKitUrl, transformVideo } from '../../lib/imagekit';
+import { Skeleton } from "./skeleton";
+import { Alert, AlertDescription } from "./alert";
 import { AlertCircle } from "lucide-react";
 
 interface VideoProps {

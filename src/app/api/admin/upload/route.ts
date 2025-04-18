@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '@/lib/tebi';
+import { uploadToTebi } from '../../../../lib/tebi';
 
 // Yüklenebilecek maksimum dosya boyutu (10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;

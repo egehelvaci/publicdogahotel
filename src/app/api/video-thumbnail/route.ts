@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { transformImage } from '@/lib/imagekit';
+import { transformImage } from '../../../lib/imagekit';
 
 export const dynamic = 'force-dynamic';
 
