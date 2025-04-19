@@ -32,12 +32,15 @@ interface QueryResult<T> {
   release: () => void;
 }
 
-// Tüm odaları getir
-export const dynamic = 'force-dynamic'; // NextJS'e bu sayfanın dinamik olduğunu belirt
-export const fetchCache = 'force-no-store'; // Cache kullanılmamasını zorla
+// Tüm API isteklerini dinamik olarak yap
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
+// GET - Tüm aktif odaları getir
 export async function GET(request: Request) {
   try {
+    console.log('API: Tüm odaları getirme isteği alındı');
+    
     const query = `
       SELECT 
         r.id, 
@@ -54,9 +57,9 @@ export async function GET(request: Request) {
         r.features_tr as "featuresTR", 
         r.features_en as "featuresEN", 
         r.type, 
-        r.room_type_id as "roomTypeId", 
-        r.order_number as order,
+        r.room_type_id as "roomTypeId",
         r.order_number as "orderNumber",
+        r.order_number as order,
         COALESCE(
           (SELECT json_agg(image_url ORDER BY order_number ASC)
            FROM room_gallery
@@ -67,7 +70,38 @@ export async function GET(request: Request) {
       ORDER BY r.order_number ASC
     `;
     
+    console.log('SQL Sorgusu çalıştırılıyor');
     const result = await executeQuery(query);
+    
+    // Veri tipi dönüşümleri
+    const processedRooms = result.rows.map(room => {
+      // features dizileri için dönüşüm
+      if (room.featuresTR && !Array.isArray(room.featuresTR)) {
+        try {
+          if (typeof room.featuresTR === 'string') {
+            // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
+            room.featuresTR = room.featuresTR.replace(/^\{|\}$/g, '').split(',');
+          }
+        } catch (error) {
+          console.error('featuresTR dönüştürme hatası:', error);
+          room.featuresTR = [];
+        }
+      }
+      
+      if (room.featuresEN && !Array.isArray(room.featuresEN)) {
+        try {
+          if (typeof room.featuresEN === 'string') {
+            // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
+            room.featuresEN = room.featuresEN.replace(/^\{|\}$/g, '').split(',');
+          }
+        } catch (error) {
+          console.error('featuresEN dönüştürme hatası:', error);
+          room.featuresEN = [];
+        }
+      }
+      
+      return room;
+    });
     
     // API yanıtı için önbellekleme önleyici başlıklar ekle
     const headers = new Headers({
@@ -77,8 +111,10 @@ export async function GET(request: Request) {
       'Surrogate-Control': 'no-store'
     });
     
+    console.log(`API: ${processedRooms.length} oda verisi döndürülüyor`);
+    
     return NextResponse.json(
-      { success: true, data: result.rows },
+      { success: true, data: processedRooms },
       { headers }
     );
   } catch (error) {

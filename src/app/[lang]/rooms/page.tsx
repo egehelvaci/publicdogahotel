@@ -14,9 +14,13 @@ interface RoomsPageProps {
 }
 
 export default function RoomsPage({ params }: RoomsPageProps) {
-  // Next.js 15'te params Promise olduğu için React.use() ile unwrap ediyoruz
+  // Next.js 15'te params için tipleri düzgün şekilde tanımlıyoruz
+  // @ts-ignore - React.use için TypeScript hatalarını görmezden geliyoruz
   const resolvedParams = React.use(params);
-  const lang = resolvedParams.lang;
+  // Tip kontrolü ekliyoruz
+  const lang = typeof resolvedParams === 'object' && resolvedParams && 'lang' in resolvedParams
+    ? resolvedParams.lang as string 
+    : 'tr'; // Varsayılan dil
   
   const [rooms, setRooms] = useState<any[]>([]);
   const [filteredRooms, setFilteredRooms] = useState<any[]>([]);
@@ -37,8 +41,8 @@ export default function RoomsPage({ params }: RoomsPageProps) {
         // No-store ile veri çekme, API önbelleğini bypass etmek için
         const timestamp = Date.now();
         const fetchUrl = typeof window !== 'undefined' 
-          ? `${window.location.origin}/api/public/rooms?t=${timestamp}` 
-          : 'http://localhost:3000/api/public/rooms';
+          ? `${window.location.origin}/api/rooms?t=${timestamp}` 
+          : 'http://localhost:3000/api/rooms';
           
         console.log('API isteği yapılıyor:', fetchUrl);
           

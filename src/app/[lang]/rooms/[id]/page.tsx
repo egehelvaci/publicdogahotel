@@ -35,9 +35,9 @@ async function fetchRoomData(lang: string, id: string) {
     
     // isServer kontrol edilerek URL belirlenir
     if (isServer) {
-      url = `http://localhost:3000/api/public/rooms/${id}?t=${timestamp}`;
+      url = `http://localhost:3000/api/rooms/${id}?t=${timestamp}`;
     } else {
-      url = `${window.location.origin}/api/public/rooms/${id}?t=${timestamp}`;
+      url = `${window.location.origin}/api/rooms/${id}?t=${timestamp}`;
     }
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
