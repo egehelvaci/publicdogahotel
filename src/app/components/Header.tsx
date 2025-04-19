@@ -122,8 +122,8 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
 
   // Dil seçenekleri
   const languageOptions = [
-    { code: 'tr', name: 'Türkçe', flag: '/images/flags/tr.png' },
-    { code: 'en', name: 'English', flag: '/images/flags/gb.png' },
+    { code: 'tr', name: 'Türkçe', flag: 'https://s3.tebi.io/dogahotelfethiye/uploads/tr.png' },
+    { code: 'en', name: 'English', flag: 'https://s3.tebi.io/dogahotelfethiye/uploads/gb.png' },
   ];
 
   console.log("Header state:", { isHomePage, scrolled, isTransparent: false, path: pathname });
