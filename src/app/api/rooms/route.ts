@@ -54,8 +54,7 @@ export async function GET(request: Request) {
         r.features_tr as "featuresTR", 
         r.features_en as "featuresEN", 
         r.type, 
-        r.room_type_id as "roomTypeId",
-        r.active, 
+        r.room_type_id as "roomTypeId", 
         r.order_number as order,
         r.order_number as "orderNumber",
         COALESCE(
@@ -145,12 +144,11 @@ export async function POST(request: Request) {
           features_en, 
           type, 
           room_type_id,
-          active, 
           order_number,
           created_at,
           updated_at
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
         ) RETURNING *
       `;
       
@@ -172,7 +170,6 @@ export async function POST(request: Request) {
         JSON.stringify(featuresEN),
         body.type || 'standard',
         body.roomTypeId || null,
-        body.active !== undefined ? body.active : true,
         body.order || orderNumber
       ];
       
@@ -222,7 +219,6 @@ export async function POST(request: Request) {
           r.features_en as "featuresEN", 
           r.type, 
           r.room_type_id as "roomTypeId",
-          r.active, 
           r.order_number as order,
           COALESCE(
             (SELECT json_agg(image_url ORDER BY order_number ASC)
@@ -248,9 +244,9 @@ export async function POST(request: Request) {
       client.release();
     }
   } catch (error) {
-    console.error('Oda ekleme hatası:', error);
+    console.error('Oda eklerken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Oda eklenirken bir hata oluştu' },
+      { success: false, message: 'Oda eklenemedi', error: String(error) },
       { status: 500 }
     );
   }
