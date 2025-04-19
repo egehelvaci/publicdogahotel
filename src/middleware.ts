@@ -26,6 +26,11 @@ async function verifyToken(token: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  // GET isteklerini yetkilendirme olmadan geçir
+  if (request.method === 'GET' && request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+  
   // Public API rotaları için middleware'i atla
   if (request.nextUrl.pathname.startsWith('/api/public/')) {
     return NextResponse.next();
@@ -114,7 +119,7 @@ export const config = {
     '/api/admin/:path*',
     // Public API rotaları için
     '/api/public/:path*',
-    // Eski API rotaları için (geriye uyumluluk)
-    '/api/rooms/:path*'
+    // Tüm API rotaları için
+    '/api/:path*'
   ],
 };
