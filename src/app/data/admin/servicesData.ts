@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { IconType } from 'react-icons';
 import { FaUtensils, FaSwimmingPool, FaSpa, FaDumbbell, FaConciergeBell, FaWifi, FaParking, FaShuttleVan, FaCoffee, FaGlassCheers } from 'react-icons/fa'; // Corrected: FaConciergeBell
 // Removed incorrect import: import { ServiceItem } from '@/app/types/serviceTypes';
-import { prisma } from '../../../lib/db';
+import { executeQuery } from '../../../lib/db';
 import { getBaseUrl as utilsGetBaseUrl, isClient, isServer } from '@/lib/utils';
 
 // Servis Öğesi Arayüzü (Defined here)
@@ -241,33 +241,7 @@ export async function getServiceById(id: string): Promise<ServiceItem | null> {
   try {
     console.log(`[getServiceById] ID: ${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
-    if (isServer && prisma) {
-      // Sunucu tarafında prisma kullan
-      console.log('[getServiceById] Sunucu tarafında prisma kullanılıyor');
-      
-      const service = await prisma.services.findUnique({
-        where: { id }
-      });
-      
-      if (!service) return null;
-      
-      return {
-        id: service.id,
-        titleTR: service.titleTR || '',
-        titleEN: service.titleEN || '',
-        descriptionTR: service.descriptionTR || '',
-        descriptionEN: service.descriptionEN || '',
-        detailsTR: service.detailsTR || [],
-        detailsEN: service.detailsEN || [],
-        image: service.image || '',
-        images: service.images as string[] || [],
-        icon: service.icon || '',
-        order: service.order || 0,
-        active: service.active
-      };
-    }
-    
-    // Client tarafında API kullan
+    // İstemci tarafında veya sunucu tarafında olup olmadığına bakılmaksızın API kullan
     console.log('[getServiceById] API kullanılıyor');
     const baseUrl = utilsGetBaseUrl();
     const response = await fetch(`${baseUrl}/api/admin/services/${id}`, {
@@ -661,33 +635,7 @@ export async function getAllServices(): Promise<ServiceItem[]> {
   try {
     console.log(`[getAllServices] Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
-    if (isServer && prisma) {
-      // Server tarafındayız ve prisma erişilebilir
-      console.log('[getAllServices] Sunucu tarafında prisma kullanılıyor');
-      
-      const services = await prisma.services.findMany({
-        orderBy: {
-          order: 'asc'
-        }
-      });
-      
-      return services.map(service => ({
-        id: service.id,
-        titleTR: service.titleTR || '',
-        titleEN: service.titleEN || '',
-        descriptionTR: service.descriptionTR || '',
-        descriptionEN: service.descriptionEN || '',
-        detailsTR: service.detailsTR || '',
-        detailsEN: service.detailsEN || '',
-        image: service.image || '',
-        images: service.images as string[] || [],
-        icon: service.icon || '',
-        order: service.order || 0,
-        active: service.active
-      }));
-    }
-    
-    // API üzerinden servisleri getir (client tarafı veya prisma'ya erişim yok)
+    // API üzerinden servisleri getir
     console.log('[getAllServices] API kullanılıyor');
     return await fetchServicesData();
   } catch (error) {

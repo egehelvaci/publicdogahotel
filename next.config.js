@@ -11,7 +11,23 @@ const nextConfig = {
   },
   typescript: {
     ignoreBuildErrors: true
-  }
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Client tarafında çalışmayacak Node.js modüllerini boş modüller olarak tanımla
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        dns: false,
+        net: false,
+        tls: false,
+        child_process: false,
+        os: false,
+        path: false,
+      };
+    }
+    return config;
+  },
 }
 
 module.exports = nextConfig 
