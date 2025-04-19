@@ -10,5 +10,26 @@
     "loadingVideo": "Video Yükleniyor...",
     "videoDescription": "Video Açıklaması",
     "videoTitle": "Video Başlığı"
+  },
+  "contact": {
+    "title": "İletişim",
+    "description": "Sorularınız ve rezervasyonlarınız için bizimle iletişime geçin.",
+    "contactInfo": "İletişim Bilgileri",
+    "contactInfoDescription": "Bize aşağıdaki kanallardan ulaşabilirsiniz.",
+    "address": "Adres",
+    "phone": "Telefon",
+    "email": "E-posta",
+    "workingHours": "Çalışma Saatleri",
+    "followUs": "Bizi Takip Edin",
+    "contactForm": "Bize Mesaj Gönderin",
+    "contactFormDescription": "Sorularınız veya önerileriniz mi var? Aşağıdaki formu doldurarak bizimle iletişime geçebilirsiniz.",
+    "name": "Adınız",
+    "emailLabel": "E-posta Adresiniz",
+    "subject": "Konu",
+    "message": "Mesajınız",
+    "send": "Mesaj Gönder",
+    "messageSent": "Mesajınız başarıyla gönderildi. En kısa sürede size dönüş yapacağız.",
+    "messageError": "Mesajınız gönderilirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+    "location": "Konum"
   }
 } 

@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key-change-in-production';
 const COOKIE_NAME = 'auth_token';
 
-// Basit token doğrulama (jose kütüphanesi olmadan)
+// Token doğrulama fonksiyonu - geliştirilmiş
 async function verifyToken(token: string) {
   try {
     // Basit bir doğrulama yaklaşımı
@@ -13,24 +13,26 @@ async function verifyToken(token: string) {
     
     // Tokenin varlığını kontrol ediyoruz, bu basit yaklaşımda
     // sadece bir token olup olmadığını kontrol ediyoruz
-    return { verified: !!token, payload: {} };
+    return { 
+      verified: !!token, 
+      payload: { 
+        role: 'admin' // Gerçek uygulamada bu değer token içinden çıkarılmalıdır
+      } 
+    };
   } catch (error) {
     console.error('Token doğrulama hatası:', error);
-    return { verified: false };
+    return { verified: false, payload: null };
   }
 }
 
 export async function middleware(request: NextRequest) {
-  // Şu an URL'nin admin bölümünde miyiz kontrol et
-  const isAdminPage = request.nextUrl.pathname.includes('/admin');
-  
-  // Admin login sayfası için middleware'i atla
-  if (request.nextUrl.pathname.includes('/admin/login')) {
+  // Public API rotaları için middleware'i atla
+  if (request.nextUrl.pathname.startsWith('/api/public/')) {
     return NextResponse.next();
   }
   
-  // Sadece admin sayfalarını korumak istiyoruz
-  if (!isAdminPage) {
+  // Admin login sayfası için middleware'i atla
+  if (request.nextUrl.pathname.includes('/admin/login')) {
     return NextResponse.next();
   }
   
@@ -39,31 +41,67 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
   
-  try {
-    // Cookie'den token'ı al
-    const token = request.cookies.get(COOKIE_NAME)?.value;
-    
-    // Token kontrolü
-    if (!token) {
-      // Kullanıcının dil tercihi URL'den alınıyor
-      const lang = request.nextUrl.pathname.split('/')[1] || 'tr';
-      return NextResponse.redirect(new URL(`/${lang}/admin/login`, request.url));
-    }
-    
-    // Token doğrulama
-    const { verified } = await verifyToken(token);
-    
-    if (verified) {
+  // Admin sayfaları veya admin API rotaları için yetkilendirme gerekli
+  const isAdminPage = request.nextUrl.pathname.includes('/admin');
+  const isAdminApi = request.nextUrl.pathname.startsWith('/api/admin/');
+  
+  if (isAdminPage || isAdminApi) {
+    try {
+      // Cookie'den token'ı al
+      const token = request.cookies.get(COOKIE_NAME)?.value;
+      
+      // Token kontrolü
+      if (!token) {
+        // API isteği ise 401 döndür
+        if (isAdminApi) {
+          return NextResponse.json(
+            { success: false, message: 'Unauthorized' },
+            { status: 401 }
+          );
+        }
+        
+        // Sayfa isteği ise login sayfasına yönlendir
+        const lang = request.nextUrl.pathname.split('/')[1] || 'tr';
+        return NextResponse.redirect(new URL(`/${lang}/admin/login`, request.url));
+      }
+      
+      // Token doğrulama
+      const { verified, payload } = await verifyToken(token);
+      
+      if (verified && payload?.role === 'admin') {
+        return NextResponse.next();
+      } else {
+        // Token geçersiz veya süresi dolmuş
+        
+        // API isteği ise 401 döndür
+        if (isAdminApi) {
+          return NextResponse.json(
+            { success: false, message: 'Unauthorized' },
+            { status: 401 }
+          );
+        }
+        
+        // Sayfa isteği ise login sayfasına yönlendir
+        const lang = request.nextUrl.pathname.split('/')[1] || 'tr';
+        return NextResponse.redirect(new URL(`/${lang}/admin/login`, request.url));
+      }
+    } catch (error) {
+      console.error('Middleware hatası:', error);
+      
+      // API isteği ise 500 döndür
+      if (isAdminApi) {
+        return NextResponse.json(
+          { success: false, message: 'Server Error' },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.next();
-    } else {
-      // Token geçersiz veya süresi dolmuş
-      const lang = request.nextUrl.pathname.split('/')[1] || 'tr';
-      return NextResponse.redirect(new URL(`/${lang}/admin/login`, request.url));
     }
-  } catch (error) {
-    console.error('Middleware hatası:', error);
-    return NextResponse.next();
   }
+  
+  // Diğer tüm rotalar için middleware'i atla
+  return NextResponse.next();
 }
 
 // Middleware'in hangi rotalarda çalışacağını belirle
@@ -72,7 +110,11 @@ export const config = {
     // Admin sayfaları için
     '/admin/:path*',
     '/:lang/admin/:path*',
-    // Admin API rotaları için (auth hariç - zaten üstte kontrol ediyoruz) 
-    '/api/admin/:path*'
+    // Admin API rotaları için
+    '/api/admin/:path*',
+    // Public API rotaları için
+    '/api/public/:path*',
+    // Eski API rotaları için (geriye uyumluluk)
+    '/api/rooms/:path*'
   ],
-}; 
+};

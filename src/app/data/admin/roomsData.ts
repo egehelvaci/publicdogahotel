@@ -213,7 +213,7 @@ const fetchRoomsData = async (): Promise<RoomItem[]> => {
       ? window.location.origin
       : 'http://localhost:3000';
     
-    const response = await fetch(`${baseUrl}/api/rooms`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -275,7 +275,7 @@ export async function forceClearAndFetchRooms() {
   roomsCache = undefined;
   
   try {
-    const response = await fetch('/api/rooms', {
+    const response = await fetch('/api/admin/rooms', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -369,7 +369,7 @@ export async function fetchRoomById(id: string): Promise<RoomItem | null> {
     
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
-    const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+    const url = `${baseUrl}/api/admin/rooms/${id}?t=${timestamp}`;
     
     console.log('API isteği:', url);
     
@@ -414,7 +414,7 @@ export async function getSiteRoomById(lang: string, id: string): Promise<SiteRoo
       
       // Timestamp ekleyerek cache'lemeyi önle
       const timestamp = Date.now();
-      const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+    const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
       
       console.log('API isteği:', url);
       
@@ -528,7 +528,7 @@ const getBaseUrl = (): string => {
 export async function addRoomItem(newItem: Omit<RoomItem, 'id'>): Promise<RoomItem | null> {
   try {
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -568,7 +568,7 @@ export const updateRoomItem = async (id: string, updatedData: Partial<RoomItem>)
     console.log('UpdateRoomItem - Gönderilecek veri:', JSON.stringify(updatedData, null, 2));
     
     // API isteği - veriyi olduğu gibi gönder (page.tsx'te zaten formatlandı)
-    const response = await fetch(`/api/rooms/${id}`, {
+    const response = await fetch(`/api/admin/rooms/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -598,7 +598,7 @@ export const updateRoomItem = async (id: string, updatedData: Partial<RoomItem>)
 export async function deleteRoomItem(id: string): Promise<boolean> {
   try {
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms/${id}`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -652,7 +652,7 @@ export async function toggleRoomVisibility(id: string): Promise<boolean> {
 export async function addImageToRoomGallery(id: string, imagePath: string): Promise<boolean> {
   try {
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms/gallery/${id}`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms/gallery/${id}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -684,7 +684,7 @@ export async function addImageToRoomGallery(id: string, imagePath: string): Prom
 export async function removeImageFromRoomGallery(id: string, imagePath: string): Promise<boolean> {
   try {
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms/gallery/${id}?imagePath=${encodeURIComponent(imagePath)}`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms/gallery/${id}?imagePath=${encodeURIComponent(imagePath)}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -759,7 +759,7 @@ export async function updateRoomGallery(id: string, galleryData: { image: string
     }));
     
     const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/rooms/gallery/${id}`, {
+    const response = await fetch(`${baseUrl}/api/admin/rooms/gallery/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

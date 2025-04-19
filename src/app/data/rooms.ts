@@ -1,16 +1,3 @@
-// Odalar için veri modeli
-interface Room {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  price: string;
-  capacity: number;
-  size: number;
-  features: string[];
-  gallery?: string[];
-}
-
 // Admin panelindeki oda verileri ile senkronize olacak fonksiyonlar
 import { getRoomsData, getSiteRoomById } from './admin/roomsData'; // Added getSiteRoomById
 import { getBaseUrl, isClient, isServer } from '@/lib/utils';
@@ -257,7 +244,8 @@ export async function getRoomsForLanguage(lang: string): Promise<Room[]> {
       const timestamp = Date.now();
       const baseUrl = getBaseUrl();
       
-      const url = `${baseUrl}/api/rooms?lang=${lang}&t=${timestamp}`;
+      // Public API endpoint'ini kullan
+      const url = `${baseUrl}/api/public/rooms?lang=${lang}&t=${timestamp}`;
       console.log(`[getRoomsForLanguage] API isteği yapılıyor: ${url}`);
       
       // Direkt API'den odaları alma
@@ -321,7 +309,8 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
       const timestamp = Date.now(); // Cache'lemeden kaçınmak için timestamp ekle
       const baseUrl = getBaseUrl();
         
-      const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+      // Public API endpoint'ini kullan
+      const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
       console.log('[getRoomById] Direkt API isteği yapılıyor:', url);
       
       // Direkt API'den veriyi almaya çalış

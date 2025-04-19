@@ -32,7 +32,7 @@ async function fetchRoomData(lang: string, id: string) {
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
     const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+    const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
     
@@ -261,4 +261,4 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
       </div>
     </div>
   );
-} 
+}
