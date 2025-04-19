@@ -5,7 +5,7 @@ import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhats
 import { getRoomsForLanguage } from '../../../data/rooms';
 import RoomGallery from './RoomGallery';
 import { notFound } from 'next/navigation';
-import { getBaseUrl, isServer } from '@/lib/utils';
+import { isServer } from '@/lib/utils';
 
 interface RoomDetailPageProps {
   params: {
@@ -31,8 +31,14 @@ async function fetchRoomData(lang: string, id: string) {
 
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
+    let url: string;
+    
+    // isServer kontrol edilerek URL belirlenir
+    if (isServer) {
+      url = `http://localhost:3000/api/public/rooms/${id}?t=${timestamp}`;
+    } else {
+      url = `${window.location.origin}/api/public/rooms/${id}?t=${timestamp}`;
+    }
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
     
