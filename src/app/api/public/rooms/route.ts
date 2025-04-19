@@ -55,7 +55,6 @@ export async function GET(request: Request) {
           '[]'::json
         ) as gallery
       FROM rooms r
-      WHERE r.active = true
       ORDER BY r.order_number ASC
     `;
     

@@ -46,8 +46,7 @@ export async function GET() {
         description_en as "descriptionEN",
         image_url as "image",
         video_url as "videoUrl",
-        order_number as "order",
-        active
+        order_number as "order"
       FROM slider
       ORDER BY order_number
     `;
@@ -134,10 +133,9 @@ export async function POST(request: Request) {
           image_url,
           video_url,
           order_number,
-          active,
           created_at,
           updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING *
       `;
       
@@ -151,8 +149,7 @@ export async function POST(request: Request) {
         body.descriptionEN || null,
         body.image || null, 
         body.videoUrl || null,
-        nextOrder,
-        body.active !== undefined ? body.active : true
+        nextOrder
       ];
       
       console.log('Ekleme sorgusu çalıştırılıyor...');
@@ -183,8 +180,7 @@ export async function POST(request: Request) {
           descriptionEN: insertResult.rows[0].description_en,
           image: insertResult.rows[0].image_url,
           videoUrl: insertResult.rows[0].video_url,
-          order: insertResult.rows[0].order_number,
-          active: insertResult.rows[0].active
+          order: insertResult.rows[0].order_number
         };
         
         console.log('Slider başarıyla eklendi:', createdSlider);
@@ -296,9 +292,8 @@ export async function PUT(request: Request) {
             image_url = $7,
             video_url = $8,
             order_number = $9,
-            active = $10,
             updated_at = CURRENT_TIMESTAMP
-          WHERE id = $11
+          WHERE id = $10
           RETURNING *
         `;
         
@@ -312,7 +307,6 @@ export async function PUT(request: Request) {
           body.image !== undefined ? body.image : checkResult.rows[0].image_url,
           body.videoUrl !== undefined ? body.videoUrl : checkResult.rows[0].video_url,
           body.order !== undefined ? body.order : checkResult.rows[0].order_number,
-          body.active !== undefined ? body.active : checkResult.rows[0].active,
           body.id
         ];
         
@@ -341,8 +335,7 @@ export async function PUT(request: Request) {
           descriptionEN: updateResult.rows[0].description_en,
           image: updateResult.rows[0].image_url,
           videoUrl: updateResult.rows[0].video_url,
-          order: updateResult.rows[0].order_number,
-          active: updateResult.rows[0].active
+          order: updateResult.rows[0].order_number
         };
         
         console.log('Slider başarıyla güncellendi:', updatedSlider);

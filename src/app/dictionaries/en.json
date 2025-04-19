@@ -10,26 +10,5 @@
     "loadingVideo": "Loading Video...",
     "videoDescription": "Video Description",
     "videoTitle": "Video Title"
-  },
-  "contact": {
-    "title": "Contact Us",
-    "description": "Get in touch with us for your inquiries and reservations.",
-    "contactInfo": "Contact Information",
-    "contactInfoDescription": "You can reach us through the following channels.",
-    "address": "Address",
-    "phone": "Phone",
-    "email": "Email",
-    "workingHours": "Working Hours",
-    "followUs": "Follow Us",
-    "contactForm": "Send Us a Message",
-    "contactFormDescription": "Have questions or suggestions? Contact us by filling out the form below.",
-    "name": "Your Name",
-    "emailLabel": "Your Email",
-    "subject": "Subject",
-    "message": "Your Message",
-    "send": "Send Message",
-    "messageSent": "Your message has been sent successfully. We will get back to you soon.",
-    "messageError": "There was an error sending your message. Please try again later.",
-    "location": "Location"
   }
 } 

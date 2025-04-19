@@ -40,7 +40,7 @@ export async function GET(
           '[]'::json
         ) as gallery
       FROM rooms r
-      WHERE r.id = $1 AND r.active = true
+      WHERE r.id = $1
     `;
     
     console.log('Oda verisi çekiliyor, ID:', id);

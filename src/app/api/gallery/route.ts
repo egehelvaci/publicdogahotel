@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
         active,
         category
       FROM gallery 
-      WHERE active = true
       ORDER BY order_number ASC
     `;
     
