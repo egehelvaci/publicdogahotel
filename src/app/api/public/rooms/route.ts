@@ -18,7 +18,6 @@ export interface RoomItem {
   gallery: string[];
   type: string;
   roomTypeId?: string;
-  active: boolean;
   order: number;
 }
 

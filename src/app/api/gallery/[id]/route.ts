@@ -25,8 +25,7 @@ export async function GET(
         description_tr as "descriptionTR", 
         description_en as "descriptionEN", 
         order_number as "orderNumber", 
-        type,
-        category
+        type
       FROM gallery 
       WHERE id = $1
     `;
@@ -123,11 +122,6 @@ export async function PUT(
     if (body.type !== undefined) {
       updateFields.push(`type = $${paramCounter++}`);
       updateValues.push(body.type);
-    }
-    
-    if (body.category !== undefined) {
-      updateFields.push(`category = $${paramCounter++}`);
-      updateValues.push(body.category);
     }
     
     if (body.orderNumber !== undefined) {

@@ -44,8 +44,7 @@ export async function GET(request: NextRequest) {
         description_tr as "descriptionTR", 
         description_en as "descriptionEN", 
         order_number as "orderNumber", 
-        type,
-        category
+        type
       FROM gallery 
       ORDER BY order_number ASC
     `;
