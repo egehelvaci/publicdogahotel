@@ -1,6 +1,6 @@
 {
-    "buildCommand": "npm install --save-dev typescript && npm install --legacy-peer-deps --force && next build",
-    "installCommand": "npm install --save-dev typescript && npm install --legacy-peer-deps --force && npm install tailwindcss@3.3.0 autoprefixer@10.4.21 postcss@8.4.33 postcss-selector-parser@6.0.10 postcss-nested@6.0.1 postcss-preset-env@9.5.0 --legacy-peer-deps --force",
+    "buildCommand": "next build",
+    "installCommand": "npm install --legacy-peer-deps --force",
     "framework": "nextjs",
     "outputDirectory": ".next",
     "rewrites": [
