@@ -30,7 +30,7 @@ interface SimpleRoom {
 const rooms: { [key: string]: SimpleRoom[] } = {
   'tr': [
     {
-      id: 'standard-room',
+      id: '3b787da0-0016-48d1-837f-648e73981817',
       name: 'Standart Oda',
       description: 'Konforlu bir konaklama için ideal.',
       image: '/images/rooms/standart/standard-room.jpg',
@@ -52,7 +52,7 @@ const rooms: { [key: string]: SimpleRoom[] } = {
   ],
   'en': [
     {
-      id: 'standard-room',
+      id: '3b787da0-0016-48d1-837f-648e73981817',
       name: 'Standard Room',
       description: 'Ideal for a comfortable stay.',
       image: '/images/rooms/standart/standard-room.jpg',
@@ -74,8 +74,11 @@ const rooms: { [key: string]: SimpleRoom[] } = {
   ]
 };
 
-export default function RoomDetailPage({ params }: RoomDetailPageProps) {
-  const { lang, id } = params;
+export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
+  // Next.js 13+ için params'ı await etmemiz gerekiyor
+  const resolvedParams = await params;
+  const lang = resolvedParams.lang;
+  const id = resolvedParams.id;
   
   if (!lang || !id || (lang !== 'tr' && lang !== 'en')) {
     return notFound();
