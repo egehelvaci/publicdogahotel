@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
   try {
     console.log('GET /api/gallery - Galeri öğeleri getiriliyor');
     
+    // Parametreleri kontrol et
+    console.log('Parametreler: Yok');
+    
     // Aktif medya içeriklerini getir
     const query = `
       SELECT 
@@ -42,12 +45,12 @@ export async function GET(request: NextRequest) {
         description_en as "descriptionEN", 
         order_number as "orderNumber", 
         type,
-        active,
         category
       FROM gallery 
       ORDER BY order_number ASC
     `;
     
+    console.log('SQL sorgusu çalıştırılıyor:', query);
     const result = await executeQuery(query);
     
     console.log(`${result.rows.length} galeri öğesi bulundu`);
@@ -65,6 +68,8 @@ export async function GET(request: NextRequest) {
     );
   } catch (error) {
     console.error('Galeri verisi çekilirken hata:', error);
+    console.error('Detaylı hata:', (error as Error).message);
+    console.error('SQL sorgusu hatası:', error);
     return NextResponse.json(
       { success: false, message: 'Galeri öğeleri alınamadı' },
       { 
