@@ -1,9 +1,11 @@
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
-import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhatsapp } from 'react-icons/fa';
-import RoomGallery from './RoomGallery';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
+
+// Sayfayı tamamen dinamik yapmak için
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 interface RoomDetailPageProps {
   params: {
@@ -12,146 +14,92 @@ interface RoomDetailPageProps {
   };
 }
 
-// Sayfayı tamamen dinamik yapmak için
-export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
-export const runtime = 'nodejs';
-
-// Merkezi oda alma fonksiyonu
-async function fetchRoomData(lang: string, id: string) {
-  try {
-    // Timestamp ekleyerek cache'lemeyi önle
-    const timestamp = Date.now();
-    const url = `http://localhost:3000/api/rooms/${id}?t=${timestamp}`;
-    
-    console.log(`[RoomDetailPage] API isteği: ${url}`);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
-      cache: 'no-store',
-      next: { revalidate: 0 }
-    });
-    
-    if (!response.ok) {
-      console.error(`[RoomDetailPage] API yanıtı başarısız: ${response.status} ${response.statusText}`);
-      return null;
-    }
-    
-    const data = await response.json();
-    
-    if (data && data.success && data.data) {
-      // API'den dönen veriyi Room formatına dönüştür
-      const room = data.data;
-      
-      return {
-        id: room.id,
-        name: lang === 'tr' ? room.nameTR : room.nameEN,
-        description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-        image: room.mainImageUrl || room.image,
-        price: lang === 'tr' ? room.priceTR : room.priceEN,
-        capacity: room.capacity,
-        size: room.size,
-        features: lang === 'tr' 
-          ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
-          : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
-        gallery: Array.isArray(room.gallery) ? room.gallery : [],
-        type: room.type
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('[RoomDetailPage] Oda verisi alınırken hata:', error);
-    return null;
-  }
+// Basit oda tipi
+interface SimpleRoom {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  price: string;
+  capacity: number;
+  size: number;
+  features: string[];
 }
 
-// Tüm odaları statik olarak çeken basit fonksiyon
-async function getAllRooms(lang: string) {
-  try {
-    const timestamp = Date.now();
-    const url = `http://localhost:3000/api/rooms?t=${timestamp}`;
-    
-    const response = await fetch(url, {
-      cache: 'no-store',
-      next: { revalidate: 0 }
-    });
-    
-    if (!response.ok) {
-      return [];
+// Basit oda verileri
+const rooms: { [key: string]: SimpleRoom[] } = {
+  'tr': [
+    {
+      id: 'standard-room',
+      name: 'Standart Oda',
+      description: 'Konforlu bir konaklama için ideal.',
+      image: '/images/rooms/standart/standard-room.jpg',
+      price: '₺1.500',
+      capacity: 2,
+      size: 26,
+      features: ['Klima', 'Wifi', 'TV', 'Banyo']
+    },
+    {
+      id: 'triple-room',
+      name: 'Üç Kişilik Oda',
+      description: 'Aileler için ideal bir konaklama seçeneği.',
+      image: '/images/rooms/triple/triple-room.jpg',
+      price: '₺2.500',
+      capacity: 3,
+      size: 26,
+      features: ['Klima', 'Wifi', 'TV', 'Banyo']
     }
-    
-    const data = await response.json();
-    if (data.success && Array.isArray(data.data)) {
-      return data.data.map((room) => ({
-        id: room.id,
-        name: lang === 'tr' ? room.nameTR : room.nameEN
-      }));
+  ],
+  'en': [
+    {
+      id: 'standard-room',
+      name: 'Standard Room',
+      description: 'Ideal for a comfortable stay.',
+      image: '/images/rooms/standart/standard-room.jpg',
+      price: '€50',
+      capacity: 2,
+      size: 26,
+      features: ['Air Conditioning', 'Wifi', 'TV', 'Bathroom']
+    },
+    {
+      id: 'triple-room',
+      name: 'Triple Room',
+      description: 'An ideal accommodation option for families.',
+      image: '/images/rooms/triple/triple-room.jpg',
+      price: '€120',
+      capacity: 3,
+      size: 26,
+      features: ['Air Conditioning', 'Wifi', 'TV', 'Bathroom']
     }
-    
-    return [];
-  } catch (error) {
-    console.error('Odalar alınırken hata:', error);
-    return [];
-  }
-}
+  ]
+};
 
-export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
-  if (!params) {
-    return notFound();
-  }
-  
+export default function RoomDetailPage({ params }: RoomDetailPageProps) {
   const { lang, id } = params;
   
-  if (!lang || !id) {
+  if (!lang || !id || (lang !== 'tr' && lang !== 'en')) {
     return notFound();
   }
   
-  console.log('[RoomDetailPage] Parametreler:', { lang, id });
+  // ID'ye göre odayı bul
+  const room = rooms[lang].find(r => r.id === id);
   
-  // Odayı getir
-  const room = await fetchRoomData(lang, id);
-  
-  // Oda bulunamazsa 404 sayfası göster
   if (!room) {
-    console.error('[RoomDetailPage] Oda bulunamadı:', id);
-    // Diagnostik için tüm odaları getir
-    const allRooms = await getAllRooms(lang);
-    
     return (
-      <div className="pt-24 pb-16 min-h-screen flex flex-col items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-800 mb-4">
-            {lang === 'tr' ? 'Oda Bulunamadı' : 'Room Not Found'}
+      <div className="pt-24 pb-16">
+        <div className="container mx-auto px-4 text-center">
+          <h1 className="text-3xl font-bold mb-4">
+            {lang === 'tr' ? 'Oda bulunamadı' : 'Room not found'}
           </h1>
-          <p className="text-gray-600 mb-8">
+          <p className="mb-6">
             {lang === 'tr' 
-              ? 'Aradığınız oda bulunamadı veya kaldırılmış olabilir.' 
-              : 'The room you are looking for could not be found or may have been removed.'}
+              ? 'Aradığınız oda bulunamadı. Lütfen başka bir oda seçin.' 
+              : 'The room you are looking for was not found. Please choose another room.'}
           </p>
-          <p className="text-gray-500 mb-4">
-            {lang === 'tr' 
-              ? `Aranan ID: ${id}` 
-              : `Requested ID: ${id}`}
-          </p>
-          {allRooms && allRooms.length > 0 && (
-            <p className="text-gray-500 mb-4">
-              {lang === 'tr' 
-                ? `Mevcut Odalar: ${allRooms.map(r => r.id).join(', ')}` 
-                : `Available Rooms: ${allRooms.map(r => r.id).join(', ')}`}
-            </p>
-          )}
           <Link 
             href={`/${lang}/rooms`}
-            className="inline-flex items-center bg-teal-600 hover:bg-teal-700 text-white py-2 px-5 rounded transition-colors duration-300"
+            className="bg-blue-500 text-white py-2 px-4 rounded"
           >
-            <FaArrowLeft className="mr-2" />
             {lang === 'tr' ? 'Odalar Sayfasına Dön' : 'Back to Rooms'}
           </Link>
         </div>
@@ -159,115 +107,57 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
     );
   }
 
-  // Oda görselleri
-  const galleryImages = room.gallery && room.gallery.length > 0 ? room.gallery : [room.image];
-  
-  // Yatak bilgisini oluştur
-  const getBedInfo = () => {
-    if (room.capacity <= 2) {
-      return lang === 'tr' ? 'Çift kişilik yatak' : 'Double bed';
-    } else if (room.capacity === 3) {
-      return lang === 'tr' ? '1 çift kişilik, 1 tek kişilik yatak' : '1 double bed, 1 single bed';
-    } else {
-      return lang === 'tr' ? 'Çoklu yatak düzeni' : 'Multiple bed arrangement';
-    }
-  };
-
   return (
     <div className="pt-24 pb-16">
       <div className="container mx-auto px-4">
-        {/* Geri Düğmesi */}
-        <div className="mb-8">
-          <Link 
-            href={`/${lang}/rooms`}
-            className="inline-flex items-center text-teal-600 hover:text-teal-700 transition-colors duration-300"
-          >
-            <FaArrowLeft className="mr-2" />
-            {lang === 'tr' ? 'Tüm Odalar' : 'All Rooms'}
-          </Link>
-        </div>
+        <Link 
+          href={`/${lang}/rooms`}
+          className="mb-6 inline-block text-blue-500"
+        >
+          {lang === 'tr' ? '← Odalar Sayfasına Dön' : '← Back to Rooms'}
+        </Link>
         
-        {/* Oda Başlık */}
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-gray-800 mb-8">
-          {room.name}
-        </h1>
+        <h1 className="text-3xl font-bold mb-4">{room.name}</h1>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Sol Taraf - Oda Görselleri Slider */}
-          <div className="aspect-[4/3] relative rounded-xl overflow-hidden shadow-xl">
-            <RoomGallery 
-              images={galleryImages} 
-              roomName={room.name} 
-              lang={lang}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="relative h-64 md:h-auto">
+            <Image 
+              src={room.image}
+              alt={room.name}
+              fill
+              className="object-cover rounded"
             />
           </div>
           
-          {/* Sağ Taraf - Oda Bilgileri */}
-          <div className="flex flex-col">
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <p className="text-gray-700 mb-6">{room.description}</p>
-              
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-teal-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <FaRulerCombined className="text-teal-600 mr-2 text-xl" />
-                    <div>
-                      <p className="text-sm text-gray-500">{lang === 'tr' ? 'Oda Boyutu' : 'Room Size'}</p>
-                      <p className="font-semibold">{room.size} m²</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-teal-50 p-4 rounded-lg">
-                  <div className="flex items-center">
-                    <FaUsers className="text-teal-600 mr-2 text-xl" />
-                    <div>
-                      <p className="text-sm text-gray-500">{lang === 'tr' ? 'Kapasite' : 'Capacity'}</p>
-                      <p className="font-semibold">{room.capacity} {lang === 'tr' ? 'Kişi' : 'Persons'}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-teal-50 p-4 rounded-lg col-span-2">
-                  <div className="flex items-center">
-                    <FaBed className="text-teal-600 mr-2 text-xl" />
-                    <div>
-                      <p className="text-sm text-gray-500">{lang === 'tr' ? 'Yatak' : 'Bed'}</p>
-                      <p className="font-semibold">{getBedInfo()}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div>
+            <p className="mb-4">{room.description}</p>
             
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4">{lang === 'tr' ? 'Oda Özellikleri' : 'Room Features'}</h3>
-              <ul className="grid grid-cols-1 gap-y-3">
-                {room.features && room.features.map((feature, index) => (
-                  <li key={index} className="flex items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors">
-                    <FaCheck className="text-teal-600 mr-3 flex-shrink-0" />
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
+            <div className="mb-4">
+              <h3 className="font-bold mb-2">
+                {lang === 'tr' ? 'Özellikler' : 'Features'}
+              </h3>
+              <ul className="list-disc pl-5">
+                {room.features.map((feature, index) => (
+                  <li key={index}>{feature}</li>
                 ))}
               </ul>
             </div>
             
-            <div className="mt-auto">
-              <a 
-                href="tel:+905320664808" 
-                className="w-full bg-teal-600 hover:bg-teal-700 text-white py-3 px-6 rounded-lg transition-colors duration-300 font-medium shadow-lg flex items-center justify-center"
-              >
-                <FaPhone className="mr-2" />
-                {lang === 'tr' ? 'Rezervasyon Yap' : 'Book Now'}
-              </a>
-              <a 
-                href={`https://wa.me/905320664808?text=${encodeURIComponent(lang === 'tr' ? 'Merhaba, Rezarvasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg transition-colors duration-300 font-medium shadow-lg flex items-center justify-center"
-              >
-                <FaWhatsapp className="mr-2 text-lg" />
-                {lang === 'tr' ? 'WhatsApp ile Bilgi Al' : 'Get Info via WhatsApp'}
-              </a>
+            <div className="mb-4">
+              <p>
+                <strong>{lang === 'tr' ? 'Kapasite:' : 'Capacity:'}</strong> {room.capacity}
+              </p>
+              <p>
+                <strong>{lang === 'tr' ? 'Boyut:' : 'Size:'}</strong> {room.size} m²
+              </p>
+              <p>
+                <strong>{lang === 'tr' ? 'Fiyat:' : 'Price:'}</strong> {room.price}
+              </p>
             </div>
+            
+            <button className="bg-blue-500 text-white py-2 px-4 rounded">
+              {lang === 'tr' ? 'Rezervasyon Yap' : 'Book Now'}
+            </button>
           </div>
         </div>
       </div>
