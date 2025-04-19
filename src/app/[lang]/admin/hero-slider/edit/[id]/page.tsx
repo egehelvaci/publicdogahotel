@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { FaArrowLeft, FaSave, FaTrashAlt } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import AdminHeader from '../../../../../components/admin/AdminHeader';
-import { getSliderById, updateSlider, deleteSlider } from '../../../../../data/admin/sliderData';
+import { getSliderById, updateSlider, deleteSlider, getAllSliderData, updateSliderItem } from '../../../../../data/admin/sliderData';
 import MediaUploader from '../../../../../../components/ui/MediaUploader';
 import ImageKitImage from '../../../../../../components/ui/ImageKitImage';
 import ImageKitVideo from '../../../../../../components/ui/ImageKitVideo';
