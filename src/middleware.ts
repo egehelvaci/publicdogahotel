@@ -116,10 +116,6 @@ export const config = {
     '/admin/:path*',
     '/:lang/admin/:path*',
     // Admin API rotaları için
-    '/api/admin/:path*',
-    // Public API rotaları için
-    '/api/public/:path*',
-    // Tüm API rotaları için
-    '/api/:path*'
+    '/api/admin/:path*'
   ],
 };
