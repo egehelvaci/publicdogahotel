@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { IconType } from 'react-icons';
 import { FaUtensils, FaSwimmingPool, FaSpa, FaDumbbell, FaConciergeBell, FaWifi, FaParking, FaShuttleVan, FaCoffee, FaGlassCheers } from 'react-icons/fa'; // Corrected: FaConciergeBell
 // Removed incorrect import: import { ServiceItem } from '@/app/types/serviceTypes';
+import { prisma } from '../../../lib/db';
+import { getBaseUrl as utilsGetBaseUrl, isClient, isServer } from '@/lib/utils';
 
 // Servis Öğesi Arayüzü (Defined here)
 export interface ServiceItem {
@@ -107,7 +109,9 @@ const initialServiceData: ServiceItem[] = [
 async function fetchServicesData(): Promise<ServiceItem[]> {
   const timestamp = Date.now(); // Önbelleği kırmak için zaman damgası
   try {
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    console.log(`[fetchServicesData] Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    const baseUrl = utilsGetBaseUrl();
     const response = await fetch(`${baseUrl}/api/admin/services?t=${timestamp}`, {
       method: 'GET',
       headers: {
@@ -151,9 +155,11 @@ const clearCache = () => {
 // Servis verilerini dil bazlı getir (site tarafı) (Return type updated)
 export async function getServicesData(lang: string): Promise<SiteService[]> {
   try {
+    console.log(`[getServicesData] Dil: ${lang}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
     // Doğrudan public API'den veri çek
     const timestamp = Date.now();
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const baseUrl = utilsGetBaseUrl();
     
     const response = await fetch(`${baseUrl}/api/services?t=${timestamp}`, {
       method: 'GET',
@@ -233,29 +239,54 @@ export async function getAllServicesData(): Promise<ServiceItem[]> {
 // ID'ye göre servis detayı getir (doğrudan API'den)
 export async function getServiceById(id: string): Promise<ServiceItem | null> {
   try {
-    const timestamp = Date.now();
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    console.log(`[getServiceById] ID: ${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
-    const response = await fetch(`${baseUrl}/api/admin/services/${id}?t=${timestamp}`, {
+    if (isServer && prisma) {
+      // Sunucu tarafında prisma kullan
+      console.log('[getServiceById] Sunucu tarafında prisma kullanılıyor');
+      
+      const service = await prisma.services.findUnique({
+        where: { id }
+      });
+      
+      if (!service) return null;
+      
+      return {
+        id: service.id,
+        titleTR: service.titleTR || '',
+        titleEN: service.titleEN || '',
+        descriptionTR: service.descriptionTR || '',
+        descriptionEN: service.descriptionEN || '',
+        detailsTR: service.detailsTR || [],
+        detailsEN: service.detailsEN || [],
+        image: service.image || '',
+        images: service.images as string[] || [],
+        icon: service.icon || '',
+        order: service.order || 0,
+        active: service.active
+      };
+    }
+    
+    // Client tarafında API kullan
+    console.log('[getServiceById] API kullanılıyor');
+    const baseUrl = utilsGetBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/services/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
-      cache: 'no-store',
-      next: { revalidate: 0 }
+      cache: 'no-store'
     });
     
     if (!response.ok) {
-      throw new Error(`API yanıtı hatalı: ${response.status}`);
+      throw new Error(`API yanıt hatası: ${response.status}`);
     }
     
     const data = await response.json();
     return data.success ? data.item : null;
   } catch (error) {
-    console.error('Hizmet getirme hatası:', error);
+    console.error(`Servis getirme hatası (ID: ${id}):`, error);
     return null;
   }
 }
@@ -623,4 +654,121 @@ export function getIconComponent(iconName: string): IconType {
   };
   
   return iconMap[iconName] || FaUtensils; // Bulunamazsa varsayılan ikon döndür
+}
+
+// Tüm servisleri getir admin için
+export async function getAllServices(): Promise<ServiceItem[]> {
+  try {
+    console.log(`[getAllServices] Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    if (isServer && prisma) {
+      // Server tarafındayız ve prisma erişilebilir
+      console.log('[getAllServices] Sunucu tarafında prisma kullanılıyor');
+      
+      const services = await prisma.services.findMany({
+        orderBy: {
+          order: 'asc'
+        }
+      });
+      
+      return services.map(service => ({
+        id: service.id,
+        titleTR: service.titleTR || '',
+        titleEN: service.titleEN || '',
+        descriptionTR: service.descriptionTR || '',
+        descriptionEN: service.descriptionEN || '',
+        detailsTR: service.detailsTR || '',
+        detailsEN: service.detailsEN || '',
+        image: service.image || '',
+        images: service.images as string[] || [],
+        icon: service.icon || '',
+        order: service.order || 0,
+        active: service.active
+      }));
+    }
+    
+    // API üzerinden servisleri getir (client tarafı veya prisma'ya erişim yok)
+    console.log('[getAllServices] API kullanılıyor');
+    return await fetchServicesData();
+  } catch (error) {
+    console.error('Servis verileri getirme hatası:', error);
+    return initialServiceData;
+  }
+}
+
+// Servis ekleme (admin panel)
+export async function addService(service: Omit<ServiceItem, 'id'>): Promise<ServiceItem | null> {
+  try {
+    console.log(`[addService] Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    const baseUrl = utilsGetBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/services`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(service)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API yanıt hatası: ${response.status}, ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return data.success ? data.item : null;
+  } catch (error) {
+    console.error('Servis ekleme hatası:', error);
+    return null;
+  }
+}
+
+// Servis güncelleme (admin panel)
+export async function updateService(id: string, serviceData: Partial<ServiceItem>): Promise<boolean> {
+  try {
+    console.log(`[updateService] ID: ${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    const baseUrl = utilsGetBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/services/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(serviceData)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API yanıt hatası: ${response.status}, ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error(`Servis güncelleme hatası (ID: ${id}):`, error);
+    return false;
+  }
+}
+
+// Servis silme (admin panel)
+export async function deleteService(id: string): Promise<boolean> {
+  try {
+    console.log(`[deleteService] ID: ${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    const baseUrl = utilsGetBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/services/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API yanıt hatası: ${response.status}, ${errorText}`);
+    }
+    
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error(`Servis silme hatası (ID: ${id}):`, error);
+    return false;
+  }
 }

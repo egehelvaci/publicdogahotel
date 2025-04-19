@@ -2,8 +2,10 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhatsapp } from 'react-icons/fa';
-import { getRoomById, getRoomsForLanguage } from '../../../data/rooms';
+import { getRoomsForLanguage } from '../../../data/rooms';
 import RoomGallery from './RoomGallery';
+import { notFound } from 'next/navigation';
+import { getBaseUrl, isServer } from '@/lib/utils';
 
 interface RoomDetailPageProps {
   params: {
@@ -17,23 +19,99 @@ export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 export const runtime = 'nodejs';
 
+// Merkezi oda alma fonksiyonu
+async function fetchRoomData(lang: string, id: string) {
+  try {
+    // Ortamı loglama
+    if (isServer) {
+      console.log('[RoomDetailPage] Sunucu tarafında çalışıyor');
+    } else {
+      console.log('[RoomDetailPage] İstemci tarafında çalışıyor');
+    }
+
+    // Timestamp ekleyerek cache'lemeyi önle
+    const timestamp = Date.now();
+    const baseUrl = getBaseUrl();
+    const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
+    
+    console.log(`[RoomDetailPage] API isteği: ${url}`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 }
+    });
+    
+    if (!response.ok) {
+      console.error(`[RoomDetailPage] API yanıtı başarısız: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.success && data.data) {
+      // API'den dönen veriyi Room formatına dönüştür
+      const room = data.data;
+      
+      return {
+        id: room.id,
+        name: lang === 'tr' ? room.nameTR : room.nameEN,
+        description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+        image: room.mainImageUrl || room.image,
+        price: lang === 'tr' ? room.priceTR : room.priceEN,
+        capacity: room.capacity,
+        size: room.size,
+        features: lang === 'tr' 
+          ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+          : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
+        gallery: Array.isArray(room.gallery) ? room.gallery : [],
+        type: room.type
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('[RoomDetailPage] Oda verisi alınırken hata:', error);
+    return null;
+  }
+}
+
 export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
   // Next.js 15'te params Promise olduğu için await ile çözümlüyoruz
+  if (!params) {
+    console.error('[RoomDetailPage] Params undefined');
+    return notFound();
+  }
+  
   const resolvedParams = await params;
+  
+  // Parametreler eksik mi kontrol et
+  if (!resolvedParams.lang || !resolvedParams.id) {
+    console.error('[RoomDetailPage] Eksik parametreler:', resolvedParams);
+    return notFound();
+  }
+  
   const lang = resolvedParams.lang;
   const id = decodeURIComponent(resolvedParams.id);
   
-  console.log('Orijinal Oda ID:', id);
+  console.log('[RoomDetailPage] Orijinal Oda ID:', id);
   
-  // Mevcut odaları kontrol et
-  const allRooms = await getRoomsForLanguage(lang);
-  console.log('Tüm mevcut odalar:', allRooms.map(room => room.id));
+  // Odayı getir
+  const room = await fetchRoomData(lang, id);
   
-  const room = await getRoomById(lang, id);
-  console.log('Bulunan oda:', room);
-  
-  // Oda bulunamadıysa
+  // Oda bulunamazsa, mevcut odaları getir ve 404 sayfası göster
   if (!room) {
+    console.error('[RoomDetailPage] Oda bulunamadı:', id);
+    // Tüm odaları getir (sorun teşhisi için)
+    const allRooms = await getRoomsForLanguage(lang);
+    console.log('[RoomDetailPage] Tüm mevcut odalar:', allRooms.map(room => ({ id: room.id, name: room.name })));
+    
     return (
       <div className="pt-24 pb-16 min-h-screen flex flex-col items-center justify-center">
         <div className="text-center">
@@ -50,11 +128,13 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
               ? `Aranan ID: ${id}` 
               : `Requested ID: ${id}`}
           </p>
-          <p className="text-gray-500 mb-4">
-            {lang === 'tr' 
-              ? `Mevcut Odalar: ${allRooms.map(r => r.id).join(', ')}` 
-              : `Available Rooms: ${allRooms.map(r => r.id).join(', ')}`}
-          </p>
+          {allRooms && allRooms.length > 0 && (
+            <p className="text-gray-500 mb-4">
+              {lang === 'tr' 
+                ? `Mevcut Odalar: ${allRooms.map(r => r.id).join(', ')}` 
+                : `Available Rooms: ${allRooms.map(r => r.id).join(', ')}`}
+            </p>
+          )}
           <Link 
             href={`/${lang}/rooms`}
             className="inline-flex items-center bg-teal-600 hover:bg-teal-700 text-white py-2 px-5 rounded transition-colors duration-300"
@@ -68,7 +148,7 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
   }
 
   // Oda görselleri
-  const galleryImages = room.gallery || [room.image];
+  const galleryImages = room.gallery && room.gallery.length > 0 ? room.gallery : [room.image];
   
   // Yatak bilgisini oluştur
   const getBedInfo = () => {
@@ -149,7 +229,7 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">{lang === 'tr' ? 'Oda Özellikleri' : 'Room Features'}</h3>
               <ul className="grid grid-cols-1 gap-y-3">
-                {room.features.map((feature, index) => (
+                {room.features && room.features.map((feature, index) => (
                   <li key={index} className="flex items-center bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors">
                     <FaCheck className="text-teal-600 mr-3 flex-shrink-0" />
                     <span className="text-gray-700">{feature}</span>
