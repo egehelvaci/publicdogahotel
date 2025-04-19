@@ -3,9 +3,6 @@
     "installCommand": "npm install --legacy-peer-deps --force",
     "framework": "nextjs",
     "outputDirectory": ".next",
-    "rewrites": [
-      { "source": "/(.*)", "destination": "/" }
-    ],
     "env": {
       "DATABASE_URL": "postgresql://neondb_owner:npg_Z9MCcdwu3YGb@ep-icy-bird-a2ty8aid-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require",
       "TEBI_BUCKET": "dogahotelfethiye",

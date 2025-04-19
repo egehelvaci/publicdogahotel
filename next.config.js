@@ -5,7 +5,7 @@ const nextConfig = {
     domains: ['s3.tebi.io'], // Dış görsel kaynağı eklendi
     unoptimized: true,
   },
-  trailingSlash: true,
+  trailingSlash: false,
   eslint: {
     ignoreDuringBuilds: true,
   },
