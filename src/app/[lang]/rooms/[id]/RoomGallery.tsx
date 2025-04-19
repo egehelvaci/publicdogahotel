@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaChevronLeft, FaChevronRight, FaTimes, FaExpand } from 'react-icons/fa';
-import { isClient } from '@/lib/utils';
 
 interface RoomGalleryProps {
   images: string[];
@@ -13,6 +12,9 @@ interface RoomGalleryProps {
 }
 
 const RoomGallery: React.FC<RoomGalleryProps> = ({ images, roomName, lang }) => {
+  // İstemci tarafında mı çalıştığını kontrol et
+  const isClient = typeof window !== 'undefined';
+  
   // SSR kontrolü - bu bileşen client tarafında çalışıyor
   if (!isClient) {
     console.log('[RoomGallery] Sunucu tarafında çalışıyor, sadece istemci tarafı işlemler atlanacak');

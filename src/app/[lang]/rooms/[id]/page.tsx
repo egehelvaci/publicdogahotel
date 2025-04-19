@@ -2,7 +2,6 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhatsapp } from 'react-icons/fa';
-import { getRoomsForLanguage } from '@/app/data/rooms';
 import RoomGallery from './RoomGallery';
 import { notFound } from 'next/navigation';
 
@@ -21,21 +20,9 @@ export const runtime = 'nodejs';
 // Merkezi oda alma fonksiyonu
 async function fetchRoomData(lang: string, id: string) {
   try {
-    // Sunucu tarafında olup olmadığını kontrol et
-    const isServer = typeof window === 'undefined';
-    
-    console.log(`[RoomDetailPage] ${isServer ? 'Sunucu' : 'İstemci'} tarafında çalışıyor`);
-
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
-    let url: string;
-    
-    // isServer kontrol edilerek URL belirlenir
-    if (isServer) {
-      url = `http://localhost:3000/api/rooms/${id}?t=${timestamp}`;
-    } else {
-      url = `${window.location.origin}/api/rooms/${id}?t=${timestamp}`;
-    }
+    const url = `http://localhost:3000/api/rooms/${id}?t=${timestamp}`;
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
     
@@ -85,35 +72,57 @@ async function fetchRoomData(lang: string, id: string) {
   }
 }
 
+// Tüm odaları statik olarak çeken basit fonksiyon
+async function getAllRooms(lang: string) {
+  try {
+    const timestamp = Date.now();
+    const url = `http://localhost:3000/api/rooms?t=${timestamp}`;
+    
+    const response = await fetch(url, {
+      cache: 'no-store',
+      next: { revalidate: 0 }
+    });
+    
+    if (!response.ok) {
+      return [];
+    }
+    
+    const data = await response.json();
+    if (data.success && Array.isArray(data.data)) {
+      return data.data.map((room) => ({
+        id: room.id,
+        name: lang === 'tr' ? room.nameTR : room.nameEN
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Odalar alınırken hata:', error);
+    return [];
+  }
+}
+
 export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
-  // Next.js 15'te params Promise olduğu için await ile çözümlüyoruz
   if (!params) {
-    console.error('[RoomDetailPage] Params undefined');
     return notFound();
   }
   
-  const resolvedParams = await params;
+  const { lang, id } = params;
   
-  // Parametreler eksik mi kontrol et
-  if (!resolvedParams.lang || !resolvedParams.id) {
-    console.error('[RoomDetailPage] Eksik parametreler:', resolvedParams);
+  if (!lang || !id) {
     return notFound();
   }
   
-  const lang = resolvedParams.lang;
-  const id = decodeURIComponent(resolvedParams.id);
-  
-  console.log('[RoomDetailPage] Orijinal Oda ID:', id);
+  console.log('[RoomDetailPage] Parametreler:', { lang, id });
   
   // Odayı getir
   const room = await fetchRoomData(lang, id);
   
-  // Oda bulunamazsa, mevcut odaları getir ve 404 sayfası göster
+  // Oda bulunamazsa 404 sayfası göster
   if (!room) {
     console.error('[RoomDetailPage] Oda bulunamadı:', id);
-    // Tüm odaları getir (sorun teşhisi için)
-    const allRooms = await getRoomsForLanguage(lang);
-    console.log('[RoomDetailPage] Tüm mevcut odalar:', allRooms.map(room => ({ id: room.id, name: room.name })));
+    // Diagnostik için tüm odaları getir
+    const allRooms = await getAllRooms(lang);
     
     return (
       <div className="pt-24 pb-16 min-h-screen flex flex-col items-center justify-center">
