@@ -1,40 +1,41 @@
 # Doğa Hotel Ölüdeniz
 
-Ölüdeniz'de bulunan Doğa Hotel'in resmi web sitesi.
+Doğa Hotel Ölüdeniz resmi web sitesi.
 
-## Teknolojiler
+## Vercel Deployment Adımları
 
-- Next.js 15
-- TypeScript
-- Tailwind CSS
-- PostgreSQL (Neon.tech)
-- Tebi.io (S3 uyumlu depolama)
+Bu proje Vercel üzerinde deploy edilmesi için hazırlanmıştır. Sorunsuz bir deployment için şu adımları takip edin:
 
-## Deployment
+1. **Vercel hesabınızda yeni bir proje oluşturun**
+   - GitHub, GitLab veya Bitbucket reponuzu bağlayın veya bu kodu yükleyin
 
-### Vercel Deploy Adımları
+2. **Çevresel Değişkenleri Ayarlayın**
+   - Aşağıdaki çevresel değişkenleri Vercel projenize ekleyin:
+   ```
+   NEXT_PUBLIC_SITE_URL=https://dogahoteloludeniz.com
+   NEXT_PUBLIC_API_URL=https://dogahoteloludeniz.com/api
+   NEXT_PUBLIC_FRONTEND_URL=https://dogahoteloludeniz.com
+   ```
 
-1. Projeyi GitHub'a push edin
-2. Vercel'de yeni bir proje oluşturun ve GitHub reponuzu seçin
-3. Aşağıdaki ortam değişkenlerini Vercel üzerinde tanımlayın:
+3. **Build Ayarları**
+   - Framework Preset: Next.js
+   - Build Command: `next build`
+   - Output Directory: `.next`
+   - Node.js Version: 18.x (veya daha yeni)
 
-```
-DATABASE_URL=postgresql://neondb_owner:npg_Z9MCcdwu3YGb@ep-icy-bird-a2ty8aid-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
-TEBI_BUCKET=dogahotelfethiye
-TEBI_API_KEY=alznfugnmS1jyhnS
-TEBI_MASTER_KEY=mcjtH1bhF2mnIke7VB2MVuQnk5YaJdbTCisd7xhk
-NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY=public_pN6cJbvfbzQHZXcDYBNQGZa10JM=
-```
+4. **Özel Domain Bağlama (İsteğe Bağlı)**
+   - Vercel dashboardında "Domains" sekmesinden özel domaininizi ekleyin
+   - DNS ayarlarınızı Vercel'in yönlendirmelerine göre güncelleyin
 
-4. Build ayarları:
-   - Build Command: `npm install --legacy-peer-deps && next build`
-   - Install Command: `npm install --legacy-peer-deps`
+## API Sorunlarını Çözme
 
-5. Deploy işlemini başlatın
+Projenin API çağrıları ile ilgili 404 sorunları yaşaması durumunda:
 
-## Geliştirme
+1. Uygulama statik verilere geri dönecek şekilde tasarlanmıştır
+2. API çağrıları başarısız olduğunda otomatik olarak statik veriler kullanılır
+3. `/src/app/data/rooms.ts` dosyasındaki statik veriler her zaman yedek olarak mevcuttur
 
-Projeyi yerel ortamda çalıştırmak için:
+## Yerel Geliştirme
 
 ```bash
 # Bağımlılıkları yükleyin
@@ -43,14 +44,13 @@ npm install
 # Geliştirme sunucusunu başlatın
 npm run dev
 
-# Derleme işlemi
+# Ya da production build alın ve başlatın
 npm run build
-
-# Üretim sunucusunu başlatın
-npm run start
+npm start
 ```
 
 ## Notlar
 
-- TypeScript ve ESLint hataları derleme sırasında göz ardı edilir (next.config.js içinde yapılandırıldı)
-- Vercel üzerinde otomatik olarak CI/CD pipeline'ı oluşturulacaktır
+- Bu uygulama hem sunucu hem de istemci tarafında doğru URL'leri oluşturacak şekilde tasarlanmıştır
+- Vercel ortamında API endpoint URL'leri otomatik olarak ayarlanır
+- Statik içerik ve API yanıtları arasında sorunsuz geçiş için hata işleme mekanizmaları eklenmiştir
