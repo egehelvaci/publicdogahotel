@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '../../../lib/db';
 import { notifyRoomsUpdated } from '../websocket/route';
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../../../lib/db';
-import { revalidatePath } from 'next/cache';
 
 // Define a basic interface for Room items based on usage (Add export)
 export interface RoomItem {

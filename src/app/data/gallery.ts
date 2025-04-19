@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
-import { prisma } from '../../lib/prisma';
+import { prisma } from '../../lib/db';
+import { isClient, isServer, getBaseUrl } from '../../lib/utils';
 
 // GalleryItem arayüzü
 export interface GalleryItem {
@@ -40,31 +41,13 @@ export function extractYoutubeId(url: string): string | null {
 // Tüm galeri öğelerini getirme API'si - Server Component'ler için
 export async function getAllGalleryItems(): Promise<GalleryItem[]> {
   try {
-    // Sunucu tarafında doğrudan prisma kullanır
-    if (typeof window === 'undefined') {
-      const galleryItems = await prisma.gallery.findMany({
-        orderBy: {
-          orderNumber: 'asc',
-        },
-      });
-
-      // Veri formatını uygulama için standartlaştır
-      return galleryItems.map(item => ({
-        id: item.id,
-        image: item.imageUrl || '',
-        imageUrl: item.imageUrl || '',
-        videoUrl: item.videoUrl || '',
-        title: item.titleTR || '',
-        description: item.descriptionTR || '',
-        order: item.orderNumber || 0,
-        type: item.type as 'image' | 'video',
-        active: true
-      }));
-    }
+    // Sunucu tarafında doğrudan Prisma kullanmak yerine her durumda API'yi kullan
+    // Bu Vercel ile daha uyumlu olacak
+    console.log(`[getAllGalleryItems] Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
-    // Client tarafında ise fetch kullanır
+    // API üzerinden verileri getir
     const timestamp = Date.now(); // Önbelleği kırmak için
-    const baseUrl = window.location.origin;
+    const baseUrl = getBaseUrl();
     
     const response = await fetch(`${baseUrl}/api/gallery?t=${timestamp}`, {
       method: 'GET',
@@ -81,14 +64,10 @@ export async function getAllGalleryItems(): Promise<GalleryItem[]> {
     
     const data = await response.json();
     
-    // Her bir öğeyi işleyerek doğru formata dönüştür
     if (data && data.success && Array.isArray(data.items)) {
-      const items = data.items;
-      
-      // Veri yapısı uyumsuzluklarını düzelt
-      return items.map(item => ({
+      return data.items.map((item: any) => ({
         id: item.id,
-        image: item.imageUrl || item.image_url || '',
+        image: item.imageUrl || item.image_url || item.image || '',
         videoUrl: item.videoUrl || item.video_url || '',
         title: item.titleTR || item.title || '',
         description: item.descriptionTR || item.description || '',
@@ -100,7 +79,7 @@ export async function getAllGalleryItems(): Promise<GalleryItem[]> {
     
     return [];
   } catch (error) {
-    console.error('Galeri verileri getirilirken hata:', error);
+    console.error('Galeri verileri çekilirken hata:', error);
     return [];
   }
 }
@@ -108,28 +87,11 @@ export async function getAllGalleryItems(): Promise<GalleryItem[]> {
 // ID'ye göre galeri öğesi getirme
 export async function getGalleryItemById(id: string): Promise<GalleryItem | null> {
   try {
-    // Sunucu tarafında doğrudan prisma kullanır
-    if (typeof window === 'undefined') {
-      const item = await prisma.gallery.findUnique({
-        where: { id }
-      });
-      
-      if (!item) return null;
-      
-      return {
-        id: item.id,
-        image: item.imageUrl || '',
-        videoUrl: item.videoUrl || '',
-        title: item.titleTR || '',
-        description: item.descriptionTR || '',
-        order: item.orderNumber || 0,
-        type: item.type as 'image' | 'video',
-        active: true
-      };
-    }
+    console.log(`[getGalleryItemById] ID: ${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
+    // İstemci/sunucu ayrımı yapmadan API kullan (Vercel uyumluluğu için)
     const timestamp = Date.now();
-    const baseUrl = window.location.origin;
+    const baseUrl = getBaseUrl();
     
     const response = await fetch(`${baseUrl}/api/gallery/${id}?t=${timestamp}`, {
       method: 'GET',

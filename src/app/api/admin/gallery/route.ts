@@ -1,161 +1,165 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
+import { executeQuery } from '../../../../lib/db';
+import { notifyGalleryUpdated } from '../../websocket/route';
+import { v4 as uuidv4 } from 'uuid';
 
 // Dynamic API route
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-// GET endpoint - Galeri öğelerini listeler
-export async function GET() {
+// GET - Tüm galeri öğelerini getir (admin için)
+export async function GET(request: NextRequest) {
   try {
-    // Tüm galeri öğelerini getir ve sırala
-    const galleryItems = await prisma.gallery.findMany({
-      orderBy: {
-        orderNumber: 'asc',
-      },
+    console.log('GET /api/admin/gallery - Admin galeri öğeleri getiriliyor');
+    
+    // URL parametrelerini kontrol et
+    const { searchParams } = new URL(request.url);
+    const onlyActive = searchParams.get('active') === 'true';
+    
+    let whereClause = '';
+    if (onlyActive) {
+      whereClause = 'WHERE active = true';
+    }
+    
+    const query = `
+      SELECT 
+        id, 
+        image_url as "imageUrl", 
+        video_url as "videoUrl", 
+        title_tr as "titleTR", 
+        title_en as "titleEN", 
+        description_tr as "descriptionTR", 
+        description_en as "descriptionEN", 
+        order_number as "orderNumber", 
+        type,
+        active,
+        category
+      FROM gallery 
+      ${whereClause}
+      ORDER BY order_number ASC
+    `;
+    
+    const result = await executeQuery(query);
+    
+    // Cache'lenmeyi engellemek için başlıklar
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
-
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğeleri başarıyla alındı',
-      items: galleryItems,
-    });
-  } catch (error) {
-    console.error('Galeri öğeleri alınırken hata:', error);
+    
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğeleri alınırken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: true, items: result.rows },
+      { headers }
+    );
+  } catch (error) {
+    console.error('Admin galeri öğeleri alınırken hata:', error);
+    return NextResponse.json(
+      { success: false, message: 'Galeri öğeleri alınamadı' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }
 
-// POST endpoint - Yeni galeri öğesi ekler
+// POST - Yeni galeri öğesi ekle
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Eğer sıralama işlemi ise
-    if (body.action === 'reorder') {
-      return handleReorder(body);
+    // Gerekli alanları kontrol et
+    if ((!body.imageUrl && !body.videoUrl) || !body.type) {
+      return NextResponse.json(
+        { success: false, message: 'Gerekli alanlar eksik' },
+        { status: 400 }
+      );
     }
     
-    console.log('POST: API çağrısı alındı, veri:', body);
+    // Sıra numarasını belirle
+    const orderQuery = `
+      SELECT COALESCE(MAX(order_number), 0) + 1 as next_order
+      FROM gallery
+    `;
     
-    // URL'lerin doğru bir şekilde işlendiğinden emin ol
-    const imageUrl = body.imageUrl || body.image_url || null;
-    const videoUrl = body.videoUrl || body.video_url || null;
-    const thumbnailUrl = body.thumbnailUrl || null; // Video thumbnail URL'i
+    const orderResult = await executeQuery(orderQuery);
+    const orderNumber = orderResult.rows[0].next_order;
     
-    // Tip kontrolü
-    let type = body.type || 'image';
+    // Yeni ID oluştur
+    const id = body.id || uuidv4();
     
-    // URL'lerin varlık kontrolü
-    if (!imageUrl && !videoUrl) {
-      console.error('API hatası: Görsel veya video URL\'si gerekli');
-      return NextResponse.json({
-        success: false,
-        message: 'Görsel veya video URL\'si gerekli'
-      }, { status: 400 });
-    }
-
-    // Tip ve URL tutarlılığı kontrolü
-    if (type === 'image' && !imageUrl) {
-      console.warn('API uyarısı: Tip "image" olarak belirtilmiş ama imageUrl yok. videoUrl kullanılıyor');
-      return NextResponse.json({
-        success: false,
-        message: 'Görsel tipi seçildi fakat görsel URL\'si eksik'
-      }, { status: 400 });
-    }
+    // Galeri öğesini ekle
+    const insertQuery = `
+      INSERT INTO gallery (
+        id, 
+        image_url, 
+        video_url, 
+        title_tr, 
+        title_en, 
+        description_tr, 
+        description_en, 
+        order_number, 
+        type,
+        active,
+        category,
+        created_at,
+        updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ) RETURNING *
+    `;
     
-    if (type === 'video' && !videoUrl) {
-      console.warn('API uyarısı: Tip "video" olarak belirtilmiş ama videoUrl yok. imageUrl kullanılıyor');
-      return NextResponse.json({
-        success: false,
-        message: 'Video tipi seçildi fakat video URL\'si eksik'
-      }, { status: 400 });
-    }
+    const insertValues = [
+      id,
+      body.imageUrl || null,
+      body.videoUrl || null,
+      body.titleTR || '',
+      body.titleEN || '',
+      body.descriptionTR || '',
+      body.descriptionEN || '',
+      body.orderNumber || orderNumber,
+      body.type,
+      body.active !== undefined ? body.active : true,
+      body.category || ''
+    ];
     
-    // URL değerine göre tipi otomatik belirle (tip belirtilmemişse)
-    if (!body.type) {
-      if (videoUrl && !imageUrl) {
-        type = 'video';
-      } else if (imageUrl && !videoUrl) {
-        type = 'image';
-      }
-      // Eğer her iki URL de varsa, gelen body.type değerini kullan
-    }
+    const result = await executeQuery(insertQuery, insertValues);
     
-    console.log('API: Tip ve URL\'ler doğrulandı:', { type, imageUrl, videoUrl, thumbnailUrl });
+    // WebSocket bildirimi gönder
+    notifyGalleryUpdated();
     
-    // Video öğesi eklerken thumbnail değerini ayarla
-    const isVideo = type === 'video' || videoUrl;
-    let finalImageUrl = imageUrl;
-
-    // Video ise thumbnail değerini ayarla
-    if (isVideo) {
-      // Video için öncelikle thumbnailUrl kullan, yoksa imageUrl'i kullan
-      finalImageUrl = thumbnailUrl || imageUrl;
-      
-      if (!finalImageUrl) {
-        console.warn('Video thumbnail bulunamadı, lütfen bir görsel yükleyin veya kapak resmi oluşturun');
-      } else {
-        console.log(`Video thumbnail ayarlandı: ${finalImageUrl} (${thumbnailUrl ? 'API thumbnail' : (imageUrl ? 'Image URL' : 'Thumbnail yok')})`);
-      }
-    }
-
-    const itemData = {
-      ...body,
-      imageUrl: finalImageUrl, // imageUrl alanı video için thumbnail olarak kullanılacak
-      videoUrl: isVideo ? videoUrl : null,
-      type: isVideo ? 'video' : 'image'
-    };
-    
-    // Konsola işlem bilgisini yaz
-    console.log('Oluşturulan galeri öğesi:', {
-      type: itemData.type,
-      imageUrl: itemData.imageUrl,
-      videoUrl: itemData.videoUrl,
-      thumbnailUrl: thumbnailUrl,
-      isVideoWithThumbnail: isVideo && !!finalImageUrl
-    });
-    
-    // En yüksek sıra numarasını bul ve 1 ekle
-    const nextOrder = await getNextOrderNumber();
-    
-    // Yeni galeri öğesi ekle
-    const newGalleryItem = await prisma.gallery.create({
-      data: {
-        titleTR: itemData.titleTR || '',
-        titleEN: itemData.titleEN || '',
-        descriptionTR: itemData.descriptionTR || '',
-        descriptionEN: itemData.descriptionEN || '',
-        imageUrl: itemData.imageUrl,
-        videoUrl: itemData.videoUrl,
-        type: itemData.type,
-        orderNumber: nextOrder,
+    return NextResponse.json(
+      { 
+        success: true, 
+        message: 'Galeri öğesi başarıyla eklendi', 
+        item: result.rows[0] 
       },
-    });
-    
-    console.log('Yeni galeri öğesi oluşturuldu:', newGalleryItem);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğesi başarıyla eklendi',
-      item: newGalleryItem,
-    });
-    
+      { 
+        status: 201,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
   } catch (error) {
     console.error('Galeri öğesi eklenirken hata:', error);
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğesi eklenirken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: false, message: 'Galeri öğesi eklenirken bir hata oluştu' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }

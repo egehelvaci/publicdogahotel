@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '../../../lib/db';
 import { uploadToTebi } from '../../../lib/tebi';
+import { notifyGalleryUpdated } from '../websocket/route';
 
 // Galeri öğesi arayüzü
 export interface GalleryItem {
@@ -20,41 +21,61 @@ export interface GalleryItem {
   type: 'image' | 'video';
 }
 
+// Dinamik API rotası - içeriğin önbelleğe alınmamasını sağlar
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-// GET: Tüm galeri öğelerini getir
+// GET - Tüm galeri öğelerini getir
 export async function GET(request: NextRequest) {
   try {
-    // URL'den parametreleri al
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type') || undefined;
+    console.log('GET /api/gallery - Galeri öğeleri getiriliyor');
     
-    // Filtreleme koşulları
-    const whereClause = type ? `WHERE type = '${type}'` : '';
-    
-    // Tüm galeri öğelerini getir (filtreleme koşulları varsa uygula)
+    // Aktif medya içeriklerini getir
     const query = `
-      SELECT * FROM gallery
-      ${whereClause}
+      SELECT 
+        id, 
+        image_url as "imageUrl", 
+        video_url as "videoUrl", 
+        title_tr as "titleTR", 
+        title_en as "titleEN", 
+        description_tr as "descriptionTR", 
+        description_en as "descriptionEN", 
+        order_number as "orderNumber", 
+        type,
+        active,
+        category
+      FROM gallery 
+      WHERE active = true
       ORDER BY order_number ASC
     `;
     
-    const result = await executeQuery(query) as any;
+    const result = await executeQuery(query);
     
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğeleri başarıyla alındı',
-      items: result.rows,
+    console.log(`${result.rows.length} galeri öğesi bulundu`);
+    
+    // Cache'lenmeyi engellemek için başlıklar
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
-  } catch (error) {
-    console.error('Galeri öğeleri alınırken hata:', error);
+    
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğeleri alınırken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: true, items: result.rows },
+      { headers }
+    );
+  } catch (error) {
+    console.error('Galeri verisi çekilirken hata:', error);
+    return NextResponse.json(
+      { success: false, message: 'Galeri öğeleri alınamadı' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }

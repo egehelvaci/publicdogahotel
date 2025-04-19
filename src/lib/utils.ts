@@ -19,14 +19,17 @@ export const isServer = !isClient;
  * Doğru base URL'yi ortama göre belirleyen merkezi fonksiyon
  */
 export function getBaseUrl(): string {
-  // Vercel ortamında
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  
-  // Production domain
-  if (process.env.NEXT_PUBLIC_DOMAIN) {
-    return `https://${process.env.NEXT_PUBLIC_DOMAIN}`;
+  // Vercel ortamı kontrolü - VERCEL değişkeni
+  if (process.env.VERCEL === '1') {
+    // VERCEL_URL'i kullan - Vercel tarafından otomatik sağlanır
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
+    }
+    
+    // Deploy edilmiş production domain
+    if (process.env.NEXT_PUBLIC_DOMAIN) {
+      return `https://${process.env.NEXT_PUBLIC_DOMAIN}`;
+    }
   }
   
   // Tarayıcı ortamında
@@ -39,8 +42,10 @@ export function getBaseUrl(): string {
     return 'http://localhost:3000';
   }
   
-  // Fallback olarak production domain
-  return 'https://dogahoteloludeniz.com';
+  // Fallback olarak NEXT_PUBLIC_DOMAIN veya localhost
+  return process.env.NEXT_PUBLIC_DOMAIN 
+    ? `https://${process.env.NEXT_PUBLIC_DOMAIN}`
+    : 'http://localhost:3000';
 }
 
 /**

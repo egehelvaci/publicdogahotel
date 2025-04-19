@@ -1,43 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
+import { executeQuery } from '../../../../lib/db';
 import { notifyGalleryUpdated } from '../../websocket/route';
 
+// Dinamik API rotası
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-// GET: ID'ye göre galeri öğesi getir
+// GET - ID'ye göre galeri öğesi getir
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const id = params.id;
+    console.log(`GET /api/gallery/${id} - Galeri öğesi getiriliyor`);
     
-    // Belirtilen ID'ye sahip galeri öğesini getir
-    const galleryItem = await prisma.gallery.findUnique({
-      where: { id },
-    });
+    const query = `
+      SELECT 
+        id, 
+        image_url as "imageUrl", 
+        video_url as "videoUrl", 
+        title_tr as "titleTR", 
+        title_en as "titleEN", 
+        description_tr as "descriptionTR", 
+        description_en as "descriptionEN", 
+        order_number as "orderNumber", 
+        type,
+        active,
+        category
+      FROM gallery 
+      WHERE id = $1
+    `;
     
-    if (!galleryItem) {
+    const result = await executeQuery(query, [id]);
+    
+    if (result.rows.length === 0) {
       return NextResponse.json(
         { success: false, message: 'Galeri öğesi bulunamadı' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        }
       );
     }
     
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğesi başarıyla alındı',
-      item: galleryItem,
+    // Cache'lenmeyi engellemek için başlıklar
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
-  } catch (error) {
-    console.error('Galeri öğesi alınırken hata:', error);
+    
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğesi alınırken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: true, item: result.rows[0] },
+      { headers }
+    );
+  } catch (error) {
+    console.error('Galeri öğesi getirilirken hata:', error);
+    return NextResponse.json(
+      { success: false, message: 'Galeri öğesi getirilirken bir hata oluştu' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }

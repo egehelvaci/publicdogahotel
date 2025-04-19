@@ -1,4 +1,20 @@
 import { Pool } from 'pg';
+import { PrismaClient } from '@prisma/client';
+
+// PrismaClient için global singleton yapısı
+declare global {
+  // Bu allows yapısı TypeScript global namespace'i genişletir
+  var prisma: PrismaClient | undefined;
+}
+
+// Prisma istemcisi
+export const prisma = global.prisma || new PrismaClient();
+
+// Geliştirme ortamında hot-reloading sırasında birden fazla
+// bağlantı oluşmasını önlemek için global değişkene atama
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
+}
 
 // PostgreSQL bağlantı havuzu oluştur
 let pool: Pool | undefined;
