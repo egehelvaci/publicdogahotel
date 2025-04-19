@@ -84,47 +84,125 @@ export async function PUT(
     const { id } = params;
     const body = await request.json();
     
-    // Güncellenecek verileri hazırla
-    const updateData = {
-      titleTR: body.titleTR,
-      titleEN: body.titleEN,
-      descriptionTR: body.descriptionTR,
-      descriptionEN: body.descriptionEN,
-      type: body.type,
-    };
+    console.log(`PUT /api/gallery/${id} - Galeri öğesi güncelleniyor`);
     
-    // İsteğe bağlı alanları kontrol et
-    if (body.imageUrl) {
-      updateData['imageUrl'] = body.imageUrl;
+    // Güncellenecek alanları belirle
+    const updateFields = [];
+    const updateValues = [];
+    let paramCounter = 1;
+    
+    if (body.imageUrl !== undefined) {
+      updateFields.push(`image_url = $${paramCounter++}`);
+      updateValues.push(body.imageUrl);
     }
     
     if (body.videoUrl !== undefined) {
-      updateData['videoUrl'] = body.videoUrl;
+      updateFields.push(`video_url = $${paramCounter++}`);
+      updateValues.push(body.videoUrl);
     }
     
-    // Galeri öğesini güncelle
-    const updatedItem = await prisma.gallery.update({
-      where: { id },
-      data: updateData,
-    });
+    if (body.titleTR !== undefined) {
+      updateFields.push(`title_tr = $${paramCounter++}`);
+      updateValues.push(body.titleTR);
+    }
     
-    // Bildirim gönder
+    if (body.titleEN !== undefined) {
+      updateFields.push(`title_en = $${paramCounter++}`);
+      updateValues.push(body.titleEN);
+    }
+    
+    if (body.descriptionTR !== undefined) {
+      updateFields.push(`description_tr = $${paramCounter++}`);
+      updateValues.push(body.descriptionTR);
+    }
+    
+    if (body.descriptionEN !== undefined) {
+      updateFields.push(`description_en = $${paramCounter++}`);
+      updateValues.push(body.descriptionEN);
+    }
+    
+    if (body.type !== undefined) {
+      updateFields.push(`type = $${paramCounter++}`);
+      updateValues.push(body.type);
+    }
+    
+    if (body.active !== undefined) {
+      updateFields.push(`active = $${paramCounter++}`);
+      updateValues.push(body.active);
+    }
+    
+    if (body.category !== undefined) {
+      updateFields.push(`category = $${paramCounter++}`);
+      updateValues.push(body.category);
+    }
+    
+    if (body.orderNumber !== undefined || body.order !== undefined) {
+      updateFields.push(`order_number = $${paramCounter++}`);
+      updateValues.push(body.orderNumber || body.order);
+    }
+    
+    // Güncelleme tarihi
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    
+    // Güncellenecek alan yoksa hata döndür
+    if (updateFields.length === 1) { // Sadece updated_at varsa
+      return NextResponse.json(
+        { success: false, message: 'Güncellenecek alan belirtilmedi' },
+        { status: 400 }
+      );
+    }
+    
+    // Güncelleme sorgusu oluştur
+    const updateQuery = `
+      UPDATE gallery
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCounter}
+      RETURNING *
+    `;
+    
+    // ID'yi son parametre olarak ekle
+    updateValues.push(id);
+    
+    // Sorguyu çalıştır
+    const result = await executeQuery(updateQuery, updateValues);
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'Güncellenecek galeri öğesi bulunamadı' },
+        { status: 404 }
+      );
+    }
+    
+    // WebSocket bildirimi gönder
     notifyGalleryUpdated();
     
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğesi başarıyla güncellendi',
-      item: updatedItem,
+    // Cache'lenmeyi engellemek için başlıklar
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
+    
+    return NextResponse.json(
+      { 
+        success: true, 
+        message: 'Galeri öğesi başarıyla güncellendi', 
+        item: result.rows[0] 
+      },
+      { headers }
+    );
   } catch (error) {
     console.error('Galeri öğesi güncellenirken hata:', error);
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğesi güncellenirken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: false, message: 'Galeri öğesi güncellenirken bir hata oluştu' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }
@@ -136,28 +214,59 @@ export async function DELETE(
 ) {
   try {
     const { id } = params;
+    console.log(`DELETE /api/gallery/${id} - Galeri öğesi siliniyor`);
     
-    // Belirtilen ID'ye sahip galeri öğesini sil
-    await prisma.gallery.delete({
-      where: { id },
-    });
+    // Önce öğenin var olup olmadığını kontrol et
+    const checkQuery = `
+      SELECT id FROM gallery WHERE id = $1
+    `;
     
-    // Bildirim gönder
+    const checkResult = await executeQuery(checkQuery, [id]);
+    
+    if (checkResult.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, message: 'Silinecek galeri öğesi bulunamadı' },
+        { status: 404 }
+      );
+    }
+    
+    // Öğeyi sil
+    const deleteQuery = `
+      DELETE FROM gallery WHERE id = $1 RETURNING id
+    `;
+    
+    await executeQuery(deleteQuery, [id]);
+    
+    // WebSocket bildirimi gönder
     notifyGalleryUpdated();
     
-    return NextResponse.json({
-      success: true,
-      message: 'Galeri öğesi başarıyla silindi',
+    // Cache'lenmeyi engellemek için başlıklar
+    const headers = new Headers({
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
     });
+    
+    return NextResponse.json(
+      { 
+        success: true, 
+        message: 'Galeri öğesi başarıyla silindi',
+        id
+      },
+      { headers }
+    );
   } catch (error) {
     console.error('Galeri öğesi silinirken hata:', error);
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Galeri öğesi silinirken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: false, message: 'Galeri öğesi silinirken bir hata oluştu' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }

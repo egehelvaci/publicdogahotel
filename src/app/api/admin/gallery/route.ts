@@ -167,42 +167,70 @@ export async function POST(request: NextRequest) {
 // Sıralama işlemini yönetir
 async function handleReorder(body: { items: Array<{ id: string; orderNumber: number }> }) {
   try {
-    // Paralel işlemler için Promise.all kullanıyoruz
-    const updates = body.items.map((item) => {
-      return prisma.gallery.update({
-        where: { id: item.id },
-        data: { orderNumber: item.orderNumber },
+    // Transaction başlat
+    const client = await (await executeQuery('BEGIN') as any).client;
+    
+    try {
+      // Her bir öğeyi sırayla güncelle
+      for (const item of body.items) {
+        const updateQuery = `
+          UPDATE gallery
+          SET order_number = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `;
+        
+        await client.query(updateQuery, [item.orderNumber, item.id]);
+      }
+      
+      // Transaction'ı tamamla
+      await client.query('COMMIT');
+      
+      // WebSocket bildirimi gönder
+      notifyGalleryUpdated();
+      
+      // Cache'lenmeyi engellemek için başlıklar
+      const headers = new Headers({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       });
-    });
-    
-    await Promise.all(updates);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Sıralama başarıyla güncellendi',
-    });
+      
+      return NextResponse.json(
+        { success: true, message: 'Sıralama başarıyla güncellendi' },
+        { headers }
+      );
+    } catch (error) {
+      // Hata durumunda geri al
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Sıralama güncellenirken hata:', error);
     return NextResponse.json(
-      {
-        success: false,
-        message: 'Sıralama güncellenirken bir hata oluştu',
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
+      { success: false, message: 'Sıralama güncellenirken bir hata oluştu' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   }
 }
 
 // Bir sonraki sıra numarasını belirler
 async function getNextOrderNumber(): Promise<number> {
-  const result = await prisma.gallery.aggregate({
-    _max: {
-      orderNumber: true,
-    },
-  });
+  const query = `
+    SELECT COALESCE(MAX(order_number), 0) + 1 as next_order
+    FROM gallery
+  `;
   
-  return (result._max.orderNumber || 0) + 1;
+  const result = await executeQuery(query);
+  return result.rows[0].next_order;
 }
 
 // Note: We will need POST, PUT, DELETE handlers here later
