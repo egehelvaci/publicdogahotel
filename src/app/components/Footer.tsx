@@ -73,7 +73,7 @@ export default function Footer({ lang: propLang }: FooterProps) {
             <Link href={`/${language}`} className="flex items-center mb-4">
               <div className="w-36 h-36 bg-white rounded-lg flex items-center justify-center p-2 shadow-md">
                 <Image 
-                  src="/images/logo/dogahotellogo.jpg" 
+                  src="https://s3.tebi.io/dogahotelfethiye/uploads/logo%20%282%29.jpg" 
                   alt="Doğa Hotel Logo" 
                   width={130} 
                   height={130}
