@@ -2,10 +2,9 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhatsapp } from 'react-icons/fa';
-import { getRoomsForLanguage } from '../../../data/rooms';
+import { getRoomsForLanguage } from '@/app/data/rooms';
 import RoomGallery from './RoomGallery';
 import { notFound } from 'next/navigation';
-import { isServer } from '@/lib/utils';
 
 interface RoomDetailPageProps {
   params: {
@@ -22,12 +21,10 @@ export const runtime = 'nodejs';
 // Merkezi oda alma fonksiyonu
 async function fetchRoomData(lang: string, id: string) {
   try {
-    // Ortamı loglama
-    if (isServer) {
-      console.log('[RoomDetailPage] Sunucu tarafında çalışıyor');
-    } else {
-      console.log('[RoomDetailPage] İstemci tarafında çalışıyor');
-    }
+    // Sunucu tarafında olup olmadığını kontrol et
+    const isServer = typeof window === 'undefined';
+    
+    console.log(`[RoomDetailPage] ${isServer ? 'Sunucu' : 'İstemci'} tarafında çalışıyor`);
 
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();

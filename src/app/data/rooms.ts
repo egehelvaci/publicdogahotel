@@ -237,15 +237,16 @@ export interface Room {
 // Bir dil için tüm odaları getiren asenkron fonksiyon
 export async function getRoomsForLanguage(lang: string): Promise<Room[]> {
   try {
+    const isServer = typeof window === 'undefined';
     console.log(`[getRoomsForLanguage] Çalıştı, dil: ${lang}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
     try {
       // Timestamp ekleyerek cache'lemeyi önle
       const timestamp = Date.now();
-      const baseUrl = getBaseUrl();
+      const baseUrl = isServer ? 'http://localhost:3000' : window.location.origin;
       
       // Public API endpoint'ini kullan
-      const url = `${baseUrl}/api/public/rooms?lang=${lang}&t=${timestamp}`;
+      const url = `${baseUrl}/api/rooms?lang=${lang}&t=${timestamp}`;
       console.log(`[getRoomsForLanguage] API isteği yapılıyor: ${url}`);
       
       // Direkt API'den odaları alma
@@ -300,18 +301,26 @@ export async function getRoomsForLanguage(lang: string): Promise<Room[]> {
   }
 }
 
-// Belirli bir odayı ID'ye göre getiren asenkron fonksiyon
+// ID'ye göre oda bilgisini getir
 export async function getRoomById(lang: string, id: string): Promise<Room | undefined> {
   try {
-    console.log(`[getRoomById] Çağrıldı: lang=${lang}, id=${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
-
+    const isServer = typeof window === 'undefined';
+    console.log(`[getRoomById] Çalıştı, ID: ${id}, dil: ${lang}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    if (!id) {
+      console.error('[getRoomById] Geçersiz ID');
+      return undefined;
+    }
+    
+    // Önce API'den veri almayı dene
     try {
-      const timestamp = Date.now(); // Cache'lemeden kaçınmak için timestamp ekle
-      const baseUrl = getBaseUrl();
-        
-      // Public API endpoint'ini kullan
-      const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
-      console.log('[getRoomById] Direkt API isteği yapılıyor:', url);
+      // Timestamp ekleyerek cache'lemeyi önle
+      const timestamp = Date.now();
+      const baseUrl = isServer ? 'http://localhost:3000' : window.location.origin;
+      
+      // API endpoint'i
+      const url = `${baseUrl}/api/rooms/${id}?lang=${lang}&t=${timestamp}`;
+      console.log(`[getRoomById] API isteği yapılıyor: ${url}`);
       
       // Direkt API'den veriyi almaya çalış
       const response = await fetch(url, {
