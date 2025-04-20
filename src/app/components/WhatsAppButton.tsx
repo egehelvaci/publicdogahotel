@@ -40,7 +40,7 @@ const WhatsAppButton: React.FC<WhatsAppButtonProps> = ({ language }) => {
   // WhatsApp numarası ve varsayılan mesaj
   const phoneNumber = '905320664808'; // Başında + işareti olmadan
   const defaultMessage = language === 'tr'
-    ? 'Merhaba, Rezarvasyon hakkında bilgi almak istiyorum'
+    ? 'Merhaba, Rezervasyon hakkında bilgi almak istiyorum'
     : 'Hello, I would like to get information about reservation';
 
   const handleWhatsAppClick = () => {
