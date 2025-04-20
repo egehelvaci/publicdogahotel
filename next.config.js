@@ -7,13 +7,14 @@ const nextConfig = {
   images: {
     domains: [
       'localhost',
-      'res.cloudinary.com',
-      's3.tebi.io',
+      'dogahoteloludeniz.vercel.app',
       'dogahoteloludeniz.com',
-      'www.dogahoteloludeniz.com'
+      'www.dogahoteloludeniz.com',
+      'dogahotel.vercel.app',
+      'publicdogahotel.vercel.app'
     ],
     // Vercel Image Optimization'ı etkinleştir
-    unoptimized: process.env.NODE_ENV !== 'production',
+    unoptimized: true,
   },
   
   // API istekleri için CORS başlıklarını yapılandır
@@ -89,6 +90,11 @@ const nextConfig = {
     // Build sırasındaki ESLint hatalarını görmezden gel
     ignoreDuringBuilds: true,
   },
+  
+  env: {
+    NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+    VERCEL_URL: process.env.VERCEL_URL
+  }
 };
 
 module.exports = nextConfig; 

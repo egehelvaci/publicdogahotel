@@ -350,7 +350,8 @@ export async function getAllRoomsData(): Promise<RoomItem[]> {
 // ID'ye göre oda getiren fonksiyon
 export async function getRoomById(id: string): Promise<RoomItem | null> {
   try {
-    const response = await fetch(`/api/admin/rooms/${id}`);
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/rooms/${id}`);
     if (!response.ok) throw new Error('Oda verileri alınamadı');
 
     const result = await response.json();
@@ -543,9 +544,18 @@ export async function getSiteRoomById(lang: string, id: string): Promise<SiteRoo
 
 // Baz URL alma fonksiyonu
 const getBaseUrl = (): string => {
-  return typeof window !== 'undefined'
-    ? window.location.origin
-    : 'http://localhost:3000';
+  if (typeof window !== 'undefined') {
+    // Client-side
+    return window.location.origin;
+  }
+  // Server-side
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+  return 'http://localhost:3000';
 };
 
 // Yeni oda ekleme
@@ -771,7 +781,8 @@ export async function reorderRoomItems(newOrder: {id: string, orderNumber: numbe
 // Oda galerisini güncelleme
 export async function updateRoomGallery(id: string, galleryData: { image: string, gallery: string[] }): Promise<boolean> {
   try {
-    const response = await fetch(`/api/admin/rooms/${id}/gallery`, {
+    const baseUrl = getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/admin/rooms/${id}/gallery`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
