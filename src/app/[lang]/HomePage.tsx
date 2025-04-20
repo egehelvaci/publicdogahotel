@@ -429,8 +429,12 @@ export default function HomePage({ lang }: HomePageProps) {
 
   return (
     <>
-      {/* Hero Slider Section */}
-      <div className="h-screen" style={{marginTop: "0", position: "relative"}}>
+      {/* Hero Slider Section - Mobile optimized */}
+      <div className="h-screen" style={{
+        marginTop: "0", 
+        position: "relative",
+        height: "calc(var(--vh, 1vh) * 100)" // Use the custom vh variable for mobile
+      }}>
         <HeroSlider language={language} />
       </div>
 

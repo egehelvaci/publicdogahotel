@@ -214,7 +214,7 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
                     <td className="p-2">
                       <div className="flex items-center space-x-2">
                         <Link
-                          href={`/${lang}/admin/rooms/${room.id}`}
+                          href={`/${lang}/admin/rooms/edit/${room.id}`}
                           className="inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
                         >
                           <FaEdit className="mr-1" />
