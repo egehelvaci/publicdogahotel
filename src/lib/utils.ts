@@ -13,39 +13,66 @@ export const isClient = typeof window !== 'undefined';
 /**
  * Sunucu tarafında çalışıp çalışmadığını kontrol eden yardımcı fonksiyon
  */
-export const isServer = !isClient;
+export const isServer = typeof window === 'undefined';
 
 /**
- * Doğru base URL'yi ortama göre belirleyen merkezi fonksiyon
+ * Tüm ortamlarda (Vercel, geliştirme vb.) çalışacak şekilde temel URL'yi döndürür
  */
 export function getBaseUrl(): string {
-  // Vercel ortamı kontrolü - VERCEL değişkeni
-  if (process.env.VERCEL === '1') {
-    // VERCEL_URL'i kullan - Vercel tarafından otomatik sağlanır
-    if (process.env.VERCEL_URL) {
-      return `https://${process.env.VERCEL_URL}`;
-    }
-    
-    // Deploy edilmiş production domain
-    if (process.env.NEXT_PUBLIC_DOMAIN) {
-      return `https://${process.env.NEXT_PUBLIC_DOMAIN}`;
-    }
-  }
-  
-  // Tarayıcı ortamında
-  if (isClient) {
+  // İstemci tarafında
+  if (!isServer) {
     return window.location.origin;
   }
   
-  // Geliştirme ortamında
-  if (process.env.NODE_ENV === 'development') {
-    return 'http://localhost:3000';
+  // Vercel ortamında
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
   
-  // Fallback olarak NEXT_PUBLIC_DOMAIN veya localhost
-  return process.env.NEXT_PUBLIC_DOMAIN 
-    ? `https://${process.env.NEXT_PUBLIC_DOMAIN}`
-    : 'http://localhost:3000';
+  // Özel alan adı
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  
+  // Geliştirme ortamı
+  return 'http://localhost:3000';
+}
+
+/**
+ * Verilen yola tam URL döndürür
+ */
+export function getAbsoluteUrl(path: string): string {
+  const baseUrl = getBaseUrl();
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${normalizedPath}`;
+}
+
+/**
+ * API URL'lerini oluşturur (hem sunucu hem istemci tarafında çalışır)
+ */
+export function getApiUrl(endpoint: string, params?: Record<string, string>): string {
+  const baseUrl = getBaseUrl();
+  let url = `${baseUrl}/api/${endpoint}`;
+  
+  // Query parametrelerini ekle
+  if (params && Object.keys(params).length > 0) {
+    const queryParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParams.append(key, value);
+      }
+    });
+    
+    // Cache'i önlemek için timestamp ekle
+    queryParams.append('t', Date.now().toString());
+    
+    url = `${url}?${queryParams.toString()}`;
+  } else {
+    // Sadece timestamp ekle
+    url = `${url}?t=${Date.now()}`;
+  }
+  
+  return url;
 }
 
 /**

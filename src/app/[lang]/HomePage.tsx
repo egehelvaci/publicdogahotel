@@ -217,12 +217,14 @@ export default function HomePage({ lang }: HomePageProps) {
     // Client tarafında çalıştığında oda verilerini yükle
     const loadRooms = async () => {
       try {
-        // No-store ile veri çekme, API önbelleğini bypass etmek için
-        const fetchUrl = typeof window !== 'undefined' 
-          ? `${window.location.origin}/api/rooms?t=${Date.now()}` 
-          : 'http://localhost:3000/api/rooms';
-          
-        const response = await fetch(fetchUrl, {
+        setLoading(true);
+        
+        // API endpoint'i
+        const baseUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : 'http://localhost:3000';
+        
+        const response = await fetch(`${baseUrl}/api/rooms`, {
           cache: 'no-store',
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -235,6 +237,8 @@ export default function HomePage({ lang }: HomePageProps) {
         }
         
         const data = await response.json();
+        console.log('API yanıtı:', data);
+        
         let rooms;
         
         if (data.success) {
@@ -245,13 +249,13 @@ export default function HomePage({ lang }: HomePageProps) {
               id: room.id,
               name: language === 'tr' ? room.nameTR : room.nameEN,
               description: language === 'tr' ? room.descriptionTR : room.descriptionEN,
-              image: room.image,
-              mainImageUrl: room.mainImageUrl || room.image,
+              image: room.mainImageUrl,
+              mainImageUrl: room.mainImageUrl,
               price: language === 'tr' ? room.priceTR : room.priceEN,
               capacity: room.capacity,
               size: room.size,
               features: language === 'tr' ? room.featuresTR : room.featuresEN,
-              gallery: room.gallery,
+              gallery: room.gallery || [],
               type: room.type
             }));
         } else {
@@ -260,32 +264,23 @@ export default function HomePage({ lang }: HomePageProps) {
         }
         
         if (Array.isArray(rooms) && rooms.length > 0) {
-          console.log('Oda ID\'leri:', rooms.map(room => room.id));
-          
-          // Her bir odanın detaylarını kontrol et
-          rooms.forEach((room, index) => {
-            console.log(`Oda ${index + 1} detayları:`, {
-              id: room.id,
-              name: room.name,
-              image: room.image?.substring(0, 30) + '...'
-            });
-          });
+          console.log('Yüklenen odalar:', rooms.map(room => ({
+            id: room.id,
+            name: room.name,
+            image: room.image
+          })));
           
           setLoadedRooms(rooms);
         } else {
           console.warn('Yüklenen oda verisi boş veya geçersiz:', rooms);
         }
       } catch (error) {
-        console.error('Oda yüklenirken hata oluştu:', error);
-        // Hata durumunda yine normal fonksiyonu dene
-        try {
-          const rooms = await getRoomsForLanguage(language);
-          if (Array.isArray(rooms) && rooms.length > 0) {
-            setLoadedRooms(rooms);
-          }
-        } catch (fallbackError) {
-          console.error('Yedek oda yükleme işlemi de başarısız oldu:', fallbackError);
-        }
+        console.error('Odalar yüklenirken hata:', error);
+        // Hata durumunda varsayılan verileri kullan
+        const defaultRooms = await getRoomsForLanguage(language);
+        setLoadedRooms(defaultRooms);
+      } finally {
+        setLoading(false);
       }
     };
     

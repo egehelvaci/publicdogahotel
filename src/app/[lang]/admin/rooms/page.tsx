@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   FaEdit, 
-  FaEye, 
-  FaEyeSlash, 
   FaArrowUp, 
   FaArrowDown,
   FaImages,
@@ -20,6 +18,8 @@ import {
 } from '../../../data/admin/roomsData';
 import useSocketNotifications from './useSocketNotifications';
 import AdminLayout from '../../../components/AdminLayout';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface AdminRoomsPageProps {
   params: {
@@ -153,49 +153,6 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
     );
   }
 
-  // Düğme bileşenlerini oluşturan yardımcı fonksiyonlar
-  const UpButton = ({ isDisabled, onClick, title }: { isDisabled: boolean, onClick: () => void, title: string }) => (
-    <button
-      onClick={onClick}
-      disabled={isDisabled}
-      className={`p-1 ${isDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-teal-700'}`}
-      title={title}
-    >
-      <FaArrowUp size={12} />
-    </button>
-  );
-
-  const DownButton = ({ isDisabled, onClick, title }: { isDisabled: boolean, onClick: () => void, title: string }) => (
-    <button
-      onClick={onClick}
-      disabled={isDisabled}
-      className={`p-1 ${isDisabled ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:text-teal-700'}`}
-      title={title}
-    >
-      <FaArrowDown size={12} />
-    </button>
-  );
-
-  const VisibilityButton = ({ isActive, onClick, title }: { isActive: boolean, onClick: () => void, title: string }) => (
-    <button
-      onClick={onClick}
-      className={`p-1 rounded hover:bg-gray-100 ${isActive ? 'text-green-600' : 'text-red-600'}`}
-      title={title}
-    >
-      {isActive ? <FaEye /> : <FaEyeSlash />}
-    </button>
-  );
-
-  const EditButton = ({ onClick, title }: { onClick: () => void, title: string }) => (
-    <button
-      onClick={onClick}
-      className="p-1 rounded text-teal-600 hover:bg-gray-100"
-      title={title}
-    >
-      <FaEdit />
-    </button>
-  );
-
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto">
@@ -228,80 +185,75 @@ export default function AdminRoomsPage({ params }: AdminRoomsPageProps) {
                   <th className="p-2 text-left">{lang === 'tr' ? 'Oda Adı (TR)' : 'Room Name (TR)'}</th>
                   <th className="p-2 text-left">{lang === 'tr' ? 'Oda Adı (EN)' : 'Room Name (EN)'}</th>
                   <th className="p-2 text-left">{lang === 'tr' ? 'Kapasite' : 'Capacity'}</th>
-                  <th className="p-2 text-left">{lang === 'tr' ? 'Durum' : 'Status'}</th>
                   <th className="p-2 text-left">{lang === 'tr' ? 'İşlemler' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody>
                 {roomItems.map((room, index) => (
-                  <tr key={room.id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <div className="flex items-center space-x-1">
-                        <span className="font-semibold">{room.order}</span>
-                        <div className="flex flex-col">
-                          <UpButton
-                            isDisabled={index === 0}
-                            onClick={() => handleReorder(room.id, 'up')}
-                            title={lang === 'tr' ? 'Yukarı Taşı' : 'Move Up'}
-                          />
-                          <DownButton
-                            isDisabled={index === roomItems.length - 1}
-                            onClick={() => handleReorder(room.id, 'down')}
-                            title={lang === 'tr' ? 'Aşağı Taşı' : 'Move Down'}
-                          />
+                  <motion.tr 
+                    key={room.id}
+                    className="border-b hover:bg-gray-50"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <td className="p-2">{index + 1}</td>
+                    <td className="p-2">
+                      <div className="w-20 h-20 relative">
+                        <Image
+                          src={room.mainImageUrl || room.image}
+                          alt={room.nameTR}
+                          fill
+                          className="object-cover rounded"
+                        />
+                      </div>
+                    </td>
+                    <td className="p-2">{room.nameTR}</td>
+                    <td className="p-2">{room.nameEN}</td>
+                    <td className="p-2">{room.capacity} {lang === 'tr' ? 'Kişi' : 'People'}</td>
+                    <td className="p-2">
+                      <div className="flex items-center space-x-2">
+                        <Link
+                          href={`/${lang}/admin/rooms/${room.id}`}
+                          className="inline-flex items-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        >
+                          <FaEdit className="mr-1" />
+                          {lang === 'tr' ? 'Düzenle' : 'Edit'}
+                        </Link>
+                        <Link
+                          href={`/${lang}/admin/rooms/gallery/${room.id}`}
+                          className="inline-flex items-center px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm"
+                        >
+                          <FaImages className="mr-1" />
+                          {lang === 'tr' ? 'Galeri' : 'Gallery'}
+                        </Link>
+                        <div className="flex items-center space-x-1">
+                          {index > 0 && (
+                            <button
+                              onClick={() => handleReorder(room.id, 'up')}
+                              className="p-1 text-gray-600 hover:text-gray-800"
+                              title={lang === 'tr' ? 'Yukarı Taşı' : 'Move Up'}
+                            >
+                              <FaArrowUp />
+                            </button>
+                          )}
+                          {index < roomItems.length - 1 && (
+                            <button
+                              onClick={() => handleReorder(room.id, 'down')}
+                              className="p-1 text-gray-600 hover:text-gray-800"
+                              title={lang === 'tr' ? 'Aşağı Taşı' : 'Move Down'}
+                            >
+                              <FaArrowDown />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </td>
-                    <td className="p-3">
-                      <div className="relative w-16 h-12 overflow-hidden rounded">
-                        <img
-                          src={room.image}
-                          alt={room.nameTR}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    </td>
-                    <td className="p-3">{room.nameTR}</td>
-                    <td className="p-3">{room.nameEN}</td>
-                    <td className="p-3 text-center">{room.capacity}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        room.active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {room.active 
-                          ? (lang === 'tr' ? 'Aktif' : 'Active') 
-                          : (lang === 'tr' ? 'Gizli' : 'Hidden')}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex space-x-2">
-                        <VisibilityButton
-                          isActive={room.active}
-                          onClick={() => handleToggleVisibility(room.id)}
-                          title={room.active 
-                            ? (lang === 'tr' ? 'Gizle' : 'Hide') 
-                            : (lang === 'tr' ? 'Göster' : 'Show')}
-                        />
-                        <Link
-                          href={`/${lang}/admin/rooms/gallery/${room.id}`}
-                          className="p-1 rounded text-blue-600 hover:bg-gray-100"
-                          title={lang === 'tr' ? 'Galeri Yönet' : 'Manage Gallery'}
-                        >
-                          <FaImages />
-                        </Link>
-                        <EditButton
-                          onClick={() => handleEditRoom(room.id)}
-                          title={lang === 'tr' ? 'Düzenle' : 'Edit'}
-                        />
-                      </div>
-                    </td>
-                  </tr>
+                  </motion.tr>
                 ))}
                 {roomItems.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="p-4 text-center text-gray-500">
+                    <td colSpan={6} className="p-4 text-center text-gray-500">
                       {lang === 'tr' ? 'Henüz hiç oda eklenmemiş.' : 'No rooms added yet.'}
                     </td>
                   </tr>

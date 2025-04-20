@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { FaArrowLeft, FaSave, FaTrashAlt } from 'react-icons/fa';
 import { BiLoader } from 'react-icons/bi';
 import AdminHeader from '../../../../../components/admin/AdminHeader';
-import { getSliderById, updateSlider, deleteSlider } from '../../../../../data/admin/sliderData';
+import { getSliderById, updateSlider, deleteSlider, getAllSliderData, updateSliderItem } from '../../../../../data/admin/sliderData';
 import MediaUploader from '../../../../../../components/ui/MediaUploader';
 import ImageKitImage from '../../../../../../components/ui/ImageKitImage';
 import ImageKitVideo from '../../../../../../components/ui/ImageKitVideo';
@@ -48,8 +48,7 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
     subtitleTR: '',
     subtitleEN: '',
     descriptionTR: '',
-    descriptionEN: '',
-    active: true
+    descriptionEN: ''
   });
 
   // Medya türünü dosya uzantısına göre belirle
@@ -123,15 +122,15 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
     
     if (type === 'checkbox') {
       const target = e.target as HTMLInputElement;
-      setFormData({
-        ...formData,
+      setFormData(prevState => ({
+        ...prevState,
         [name]: target.checked
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
+      setFormData(prevState => ({
+        ...prevState,
         [name]: value
-      });
+      }));
     }
   };
 
@@ -164,8 +163,7 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
         subtitleTR: formData.subtitleTR || '',
         subtitleEN: formData.subtitleEN || '',
         descriptionTR: formData.descriptionTR || '',
-        descriptionEN: formData.descriptionEN || '',
-        active: formData.active === undefined ? true : formData.active
+        descriptionEN: formData.descriptionEN || ''
       };
       
       // Önce mevcut veriyi al, değişen alanları bul ve sadece onları gönder
@@ -465,22 +463,6 @@ export default function EditSliderPage({ params }: EditSliderPageProps) {
                   className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  name="active"
-                  checked={formData.active}
-                  onChange={handleChange}
-                  className="mr-2 h-5 w-5 rounded text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700">Aktif</span>
-              </label>
-              <p className="mt-1 text-sm text-gray-500">
-                Bu seçeneği işaretlerseniz, slider ana sayfada görüntülenir.
-              </p>
             </div>
 
             <div className="flex justify-end">
