@@ -350,11 +350,35 @@ export async function getAllRoomsData(): Promise<RoomItem[]> {
 // ID'ye göre oda getiren fonksiyon
 export async function getRoomById(id: string): Promise<RoomItem | null> {
   try {
-    // Veri çek
-    const rooms = await getRoomDataWithCache();
-    return rooms.find(room => room.id === id) || null;
+    const response = await fetch(`/api/admin/rooms/${id}`);
+    if (!response.ok) throw new Error('Oda verileri alınamadı');
+
+    const result = await response.json();
+    if (!result.success || !result.data) return null;
+
+    const room = result.data;
+    return {
+      id: room.id,
+      nameTR: room.nameTR || '',
+      nameEN: room.nameEN || '',
+      descriptionTR: room.descriptionTR || '',
+      descriptionEN: room.descriptionEN || '',
+      mainImageUrl: room.mainImageUrl || room.image || '',
+      image: room.mainImageUrl || room.image || '',
+      priceTR: room.priceTR || '',
+      priceEN: room.priceEN || '',
+      capacity: room.capacity || 2,
+      size: room.size || 25,
+      featuresTR: room.featuresTR || [],
+      featuresEN: room.featuresEN || [],
+      gallery: room.gallery?.map(g => g.imageUrl || g) || [],
+      type: room.type || 'standard',
+      roomTypeId: room.roomTypeId || null,
+      active: room.active ?? true,
+      orderNumber: room.orderNumber || room.order || 0
+    };
   } catch (error) {
-    console.error('getRoomById hatası:', error);
+    console.error('Oda verileri alınırken hata:', error);
     return null;
   }
 }
@@ -747,47 +771,24 @@ export async function reorderRoomItems(newOrder: {id: string, orderNumber: numbe
 // Oda galerisini güncelleme
 export async function updateRoomGallery(id: string, galleryData: { image: string, gallery: string[] }): Promise<boolean> {
   try {
-    console.log('Galeri güncellenecek:', id, {
-      mainImageUrl: galleryData.image, 
-      galleryCount: galleryData.gallery.length
-    });
-    
-    // UUID ile galeri öğelerini formatlama
-    const formattedGallery = galleryData.gallery.map(imageUrl => ({
-      id: uuidv4(), // Her galeri öğesi için benzersiz ID
-      imageUrl
-    }));
-    
-    const baseUrl = getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/admin/rooms/gallery/${id}`, {
+    const response = await fetch(`/api/admin/rooms/${id}/gallery`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        mainImageUrl: galleryData.image,
-        gallery: formattedGallery // Formatlı galeri gönder
-      })
+      body: JSON.stringify(galleryData)
     });
-    
-    const responseData = await response.json();
-    console.log('Galeri güncelleme yanıtı:', responseData);
-    
+
     if (!response.ok) {
-      console.error('API hatası:', response.status, responseData);
-      throw new Error(`Galeri güncellenemedi: ${id} - Hata: ${response.status} ${responseData.message || 'Bilinmeyen hata'}`);
-    }
-    
-    if (responseData.success) {
-      // Önbelleği temizle
-      clearCache();
-      return true;
-    } else {
-      console.error('API hatası:', responseData.message);
+      const errorData = await response.json();
+      console.error('Galeri güncelleme API hatası:', errorData);
       return false;
     }
+
+    const result = await response.json();
+    return result.success === true;
   } catch (error) {
-    console.error('Galeri güncelleme hatası:', error);
+    console.error('Galeri güncellenirken hata:', error);
     return false;
   }
 }

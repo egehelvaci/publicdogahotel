@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { executeQuery } from '../../../lib/db';
+import { prisma } from '@/lib/prisma';
 import { notifyRoomsUpdated } from '../websocket/route';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -32,102 +32,89 @@ interface QueryResult<T> {
   release: () => void;
 }
 
-// Tüm API isteklerini dinamik olarak yap
+// Dynamic API route
 export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+
+// CORS ve cache ayarları
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+const cacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
 
 // GET - Tüm aktif odaları getir
 export async function GET(request: Request) {
   try {
     console.log('API: Tüm odaları getirme isteği alındı');
     
-    const query = `
-      SELECT 
-        r.id, 
-        r.name_tr as "nameTR", 
-        r.name_en as "nameEN", 
-        r.description_tr as "descriptionTR", 
-        r.description_en as "descriptionEN", 
-        r.main_image_url as image, 
-        r.main_image_url as "mainImageUrl", 
-        r.price_tr as "priceTR", 
-        r.price_en as "priceEN", 
-        r.capacity, 
-        r.size, 
-        r.features_tr as "featuresTR", 
-        r.features_en as "featuresEN", 
-        r.type, 
-        r.room_type_id as "roomTypeId",
-        r.order_number as "orderNumber",
-        r.order_number as order,
-        COALESCE(
-          (SELECT json_agg(image_url ORDER BY order_number ASC)
-           FROM room_gallery
-           WHERE room_id = r.id), 
-          '[]'::json
-        ) as gallery
-      FROM rooms r
-      ORDER BY r.order_number ASC
-    `;
-    
-    console.log('SQL Sorgusu çalıştırılıyor');
-    const result = await executeQuery(query);
-    
-    // Veri tipi dönüşümleri
-    const processedRooms = result.rows.map(room => {
-      // features dizileri için dönüşüm
-      if (room.featuresTR && !Array.isArray(room.featuresTR)) {
-        try {
-          if (typeof room.featuresTR === 'string') {
-            // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
-            room.featuresTR = room.featuresTR.replace(/^\{|\}$/g, '').split(',');
+    // Prisma ile odaları getir
+    const rooms = await prisma.room.findMany({
+      where: {
+        active: true
+      },
+      include: {
+        gallery: {
+          orderBy: {
+            orderNumber: 'asc'
           }
-        } catch (error) {
-          console.error('featuresTR dönüştürme hatası:', error);
-          room.featuresTR = [];
         }
+      },
+      orderBy: {
+        orderNumber: 'asc'
       }
-      
-      if (room.featuresEN && !Array.isArray(room.featuresEN)) {
-        try {
-          if (typeof room.featuresEN === 'string') {
-            // PostgreSQL'den gelen dizi formatını işle: {item1,item2}
-            room.featuresEN = room.featuresEN.replace(/^\{|\}$/g, '').split(',');
-          }
-        } catch (error) {
-          console.error('featuresEN dönüştürme hatası:', error);
-          room.featuresEN = [];
-        }
-      }
-      
-      return room;
     });
-    
-    // API yanıtı için önbellekleme önleyici başlıklar ekle
-    const headers = new Headers({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Surrogate-Control': 'no-store'
-    });
+
+    // Galeri URL'lerini dönüştür
+    const processedRooms = rooms.map(room => ({
+      id: room.id,
+      nameTR: room.nameTR,
+      nameEN: room.nameEN,
+      descriptionTR: room.descriptionTR,
+      descriptionEN: room.descriptionEN,
+      mainImageUrl: room.mainImageUrl,
+      image: room.mainImageUrl,
+      priceTR: room.priceTR,
+      priceEN: room.priceEN,
+      capacity: room.capacity,
+      size: room.size,
+      featuresTR: room.featuresTR,
+      featuresEN: room.featuresEN,
+      type: room.type,
+      gallery: room.gallery.map(g => g.imageUrl),
+      active: room.active,
+      orderNumber: room.orderNumber
+    }));
     
     console.log(`API: ${processedRooms.length} oda verisi döndürülüyor`);
     
     return NextResponse.json(
       { success: true, data: processedRooms },
-      { headers }
+      { 
+        headers: {
+          ...corsHeaders,
+          ...cacheHeaders
+        }
+      }
     );
   } catch (error) {
-    console.error('Odalar listesi alınırken hata:', error);
+    console.error('Odalar getirilirken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Odalar alınamadı' },
+      { 
+        success: false, 
+        message: 'Odalar getirilemedi',
+        error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+      },
       { 
         status: 500,
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'Surrogate-Control': 'no-store'
+          ...corsHeaders,
+          ...cacheHeaders
         }
       }
     );

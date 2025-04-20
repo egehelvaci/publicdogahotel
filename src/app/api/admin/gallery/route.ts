@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery } from '../../../../lib/db';
+import { prisma } from '../../../../lib/db';
 import { notifyGalleryUpdated } from '../../websocket/route';
-import { v4 as uuidv4 } from 'uuid';
 
 // Dynamic API route
 export const dynamic = 'force-dynamic';
-export const fetchCache = 'force-no-store';
+
+// CORS ve cache ayarları
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+const cacheHeaders = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+};
 
 // GET - Tüm galeri öğelerini getir (admin için)
 export async function GET(request: NextRequest) {
@@ -16,52 +27,53 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const onlyActive = searchParams.get('active') === 'true';
     
-    let whereClause = '';
-    if (onlyActive) {
-      whereClause = 'WHERE active = true';
-    }
-    
-    const query = `
-      SELECT 
-        id, 
-        image_url as "imageUrl", 
-        video_url as "videoUrl", 
-        title_tr as "titleTR", 
-        title_en as "titleEN", 
-        description_tr as "descriptionTR", 
-        description_en as "descriptionEN", 
-        order_number as "orderNumber", 
-        type,
-        active,
-        category
-      FROM gallery 
-      ${whereClause}
-      ORDER BY order_number ASC
-    `;
-    
-    const result = await executeQuery(query);
-    
-    // Cache'lenmeyi engellemek için başlıklar
-    const headers = new Headers({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
+    // Galeri öğelerini getir
+    const galleryItems = await prisma.gallery.findMany({
+      orderBy: {
+        orderNumber: 'asc'
+      },
+      select: {
+        id: true,
+        imageUrl: true,
+        videoUrl: true,
+        titleTR: true,
+        titleEN: true,
+        descriptionTR: true,
+        descriptionEN: true,
+        orderNumber: true,
+        type: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
     
+    console.log('Galeri öğeleri başarıyla alındı:', galleryItems.length);
+    
     return NextResponse.json(
-      { success: true, items: result.rows },
-      { headers }
+      { 
+        success: true, 
+        items: galleryItems 
+      },
+      { 
+        headers: {
+          ...corsHeaders,
+          ...cacheHeaders
+        }
+      }
     );
   } catch (error) {
     console.error('Admin galeri öğeleri alınırken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Galeri öğeleri alınamadı' },
+      { 
+        success: false, 
+        message: 'Galeri öğeleri alınamadı',
+        error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+      },
       { 
         status: 500,
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          ...corsHeaders,
+          ...cacheHeaders
         }
       }
     );
@@ -74,61 +86,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Gerekli alanları kontrol et
-    if ((!body.imageUrl && !body.videoUrl) || !body.type) {
+    if (!body.imageUrl && !body.videoUrl) {
       return NextResponse.json(
-        { success: false, message: 'Gerekli alanlar eksik' },
+        { success: false, message: 'En az bir görsel veya video URL\'si gereklidir' },
         { status: 400 }
       );
     }
     
-    // Sıra numarasını belirle
-    const orderQuery = `
-      SELECT COALESCE(MAX(order_number), 0) + 1 as next_order
-      FROM gallery
-    `;
-    
-    const orderResult = await executeQuery(orderQuery);
-    const orderNumber = orderResult.rows[0].next_order;
-    
-    // Yeni ID oluştur
-    const id = body.id || uuidv4();
-    
-    // Galeri öğesini ekle
-    const insertQuery = `
-      INSERT INTO gallery (
-        id, 
-        image_url, 
-        video_url, 
-        title_tr, 
-        title_en, 
-        description_tr, 
-        description_en, 
-        order_number, 
-        type,
-        active,
-        category,
-        created_at,
-        updated_at
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-      ) RETURNING *
-    `;
-    
-    const insertValues = [
-      id,
-      body.imageUrl || null,
-      body.videoUrl || null,
-      body.titleTR || '',
-      body.titleEN || '',
-      body.descriptionTR || '',
-      body.descriptionEN || '',
-      body.orderNumber || orderNumber,
-      body.type,
-      body.active !== undefined ? body.active : true,
-      body.category || ''
-    ];
-    
-    const result = await executeQuery(insertQuery, insertValues);
+    // Yeni galeri öğesi oluştur
+    const newItem = await prisma.gallery.create({
+      data: {
+        imageUrl: body.imageUrl,
+        videoUrl: body.videoUrl,
+        titleTR: body.titleTR,
+        titleEN: body.titleEN,
+        descriptionTR: body.descriptionTR,
+        descriptionEN: body.descriptionEN,
+        orderNumber: body.orderNumber || 0,
+        type: body.type || 'image'
+      }
+    });
     
     // WebSocket bildirimi gönder
     notifyGalleryUpdated();
@@ -136,28 +113,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         success: true, 
-        message: 'Galeri öğesi başarıyla eklendi', 
-        item: result.rows[0] 
+        message: 'Galeri öğesi başarıyla eklendi',
+        item: newItem
       },
       { 
         status: 201,
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          ...corsHeaders,
+          ...cacheHeaders
         }
       }
     );
   } catch (error) {
     console.error('Galeri öğesi eklenirken hata:', error);
     return NextResponse.json(
-      { success: false, message: 'Galeri öğesi eklenirken bir hata oluştu' },
+      { 
+        success: false, 
+        message: 'Galeri öğesi eklenemedi',
+        error: error instanceof Error ? error.message : 'Bilinmeyen hata'
+      },
       { 
         status: 500,
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          ...corsHeaders,
+          ...cacheHeaders
         }
       }
     );

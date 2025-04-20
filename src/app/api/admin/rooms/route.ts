@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { executeQuery } from '../../../../lib/db';
 import { notifyRoomsUpdated } from '../../websocket/route';
 import { v4 as uuidv4 } from 'uuid';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Define a basic interface for Room items based on usage
 export interface RoomItem {
@@ -38,37 +41,18 @@ export const fetchCache = 'force-no-store'; // Cache kullanılmamasını zorla
 
 export async function GET(request: Request) {
   try {
-    const query = `
-      SELECT 
-        r.id, 
-        r.name_tr as "nameTR", 
-        r.name_en as "nameEN", 
-        r.description_tr as "descriptionTR", 
-        r.description_en as "descriptionEN", 
-        r.main_image_url as image, 
-        r.main_image_url as "mainImageUrl", 
-        r.price_tr as "priceTR", 
-        r.price_en as "priceEN", 
-        r.capacity, 
-        r.size, 
-        r.features_tr as "featuresTR", 
-        r.features_en as "featuresEN", 
-        r.type, 
-        r.room_type_id as "roomTypeId",
-        r.active, 
-        r.order_number as order,
-        r.order_number as "orderNumber",
-        COALESCE(
-          (SELECT json_agg(image_url ORDER BY order_number ASC)
-           FROM room_gallery
-           WHERE room_id = r.id), 
-          '[]'::json
-        ) as gallery
-      FROM rooms r
-      ORDER BY r.order_number ASC
-    `;
-    
-    const result = await executeQuery(query);
+    const rooms = await prisma.room.findMany({
+      include: {
+        gallery: {
+          orderBy: {
+            orderNumber: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        orderNumber: 'asc'
+      }
+    });
     
     // API yanıtı için önbellekleme önleyici başlıklar ekle
     const headers = new Headers({
@@ -79,7 +63,7 @@ export async function GET(request: Request) {
     });
     
     return NextResponse.json(
-      { success: true, data: result.rows },
+      { success: true, data: rooms },
       { headers }
     );
   } catch (error) {
@@ -172,7 +156,7 @@ export async function POST(request: Request) {
         JSON.stringify(featuresEN),
         body.type || 'standard',
         body.roomTypeId || null,
-        body.active !== undefined ? body.active : true,
+        true,
         body.order || orderNumber
       ];
       
@@ -253,5 +237,25 @@ export async function POST(request: Request) {
       { success: false, message: 'Oda eklenirken bir hata oluştu' },
       { status: 500 }
     );
+  }
+}
+
+// PUT - Odayı güncelle
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    
+    // Odayı güncelle
+    const updatedRoom = await prisma.room.update({
+      where: { id: body.id },
+      data: {
+        ...body,
+        active: true // Her zaman aktif
+      }
+    });
+
+    // ... existing code ...
+  } catch (error) {
+    // ... existing code ...
   }
 }
