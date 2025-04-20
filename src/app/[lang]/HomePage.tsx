@@ -113,8 +113,8 @@ const ServiceCard = ({ service, index, language }: { service: any; index: number
     >
       <div className="relative h-48 w-full overflow-hidden">
         <Image 
-          src={service.image}
-          alt={service.title}
+          src={service.image || '/images/placeholder-service.jpg'}
+          alt={service.title || 'Service Image'}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="transition-transform duration-700 group-hover:scale-110 object-cover"

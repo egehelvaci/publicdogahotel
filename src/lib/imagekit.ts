@@ -113,14 +113,19 @@ export function transformVideo(url: string, options: VideoTransformOptions = {})
   }
 }
 
-// ImageKit yapılandırması
-const imagekit = new ImageKit({
+// ImageKit entegrasyonu için kullanılacak yapılandırma
+export const imagekitConfig = {
   publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || '',
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY || '',
-  urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT || ''
-});
+  urlEndpoint: process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT || '',
+};
 
-export default imagekit;
+// Güvenli istemci tarafında ImageKit public key ve URL endpoint değerlerine erişim
+export const getImageKitClientConfig = () => {
+  const publicKey = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || 'demo_public_key';
+  const urlEndpoint = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/demo';
+  
+  return { publicKey, urlEndpoint };
+};
 
 // ------ SERVER SIDE FUNCTIONS ------
 // Bu fonksiyonlar sadece server component'lerde kullanılmalıdır

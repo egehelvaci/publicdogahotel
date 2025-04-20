@@ -21,7 +21,7 @@ async function fetchRoomData(lang: string, id: string) {
   try {
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
-    const url = `http://localhost:3000/api/rooms/${id}?t=${timestamp}`;
+    const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/rooms/${id}?t=${timestamp}`;
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
     
@@ -244,7 +244,7 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
                 {lang === 'tr' ? 'Rezervasyon Yap' : 'Book Now'}
               </a>
               <a 
-                href={`https://wa.me/905320664808?text=${encodeURIComponent(lang === 'tr' ? 'Merhaba, Rezarvasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
+                href={`https://wa.me/905320664808?text=${encodeURIComponent(lang === 'tr' ? 'Merhaba, Rezervasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg transition-colors duration-300 font-medium shadow-lg flex items-center justify-center"
