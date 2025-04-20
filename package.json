@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "next lint",
     "prisma:seed": "node prisma/seed.js",
-    "postinstall": "prisma generate"
+    "postinstall": "npx prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -80,6 +80,7 @@
     "css-loader": "^7.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
+    "prisma": "^6.6.0",
     "style-loader": "^4.0.0",
     "ts-node": "^10.9.2"
   }
