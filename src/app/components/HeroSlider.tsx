@@ -357,7 +357,7 @@ const HeroSlider: React.FC<HeroSliderProps> = ({ language }) => {
                 className="object-cover w-full h-full"
                 priority={true}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/40"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/50"></div>
             </div>
           )}
         </motion.div>
@@ -372,23 +372,23 @@ const HeroSlider: React.FC<HeroSliderProps> = ({ language }) => {
             animate={{opacity: 1, y: 0}}
             exit={{opacity: 0, y: -30}}
             transition={{duration: 0.5, ease: "easeOut"}}
-            className="text-center max-w-4xl"
+            className="text-center max-w-4xl px-4 sm:px-6"
           >
             {subtitle && (
               <motion.div 
-                className="mb-6 inline-block"
+                className="mb-4 sm:mb-6 inline-block"
                 initial={{opacity: 0, y: 15}}
                 animate={{opacity: 1, y: 0}}
                 transition={{duration: 0.4, delay: 0.1}}
               >
-                <span className="bg-amber-500 bg-opacity-90 text-white px-5 py-3 text-base md:text-lg lg:text-xl uppercase tracking-wider rounded-md font-semibold shadow-lg">
+                <span className="bg-amber-500 bg-opacity-90 text-white px-3 py-2 sm:px-5 sm:py-3 text-sm sm:text-base md:text-lg lg:text-xl uppercase tracking-wider rounded-md font-semibold shadow-lg">
                   {subtitle}
                 </span>
               </motion.div>
             )}
             
             <motion.h1 
-              className="text-5xl md:text-7xl lg:text-8xl font-extrabold text-white mb-8 drop-shadow-xl text-shadow-lg"
+              className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold text-white mb-4 sm:mb-6 md:mb-8 drop-shadow-xl text-shadow-lg"
               style={{color: headingColor, textShadow: '0 4px 12px rgba(0,0,0,0.5)'}}
               initial={{opacity: 0, y: 20}}
               animate={{opacity: 1, y: 0}}
@@ -399,7 +399,7 @@ const HeroSlider: React.FC<HeroSliderProps> = ({ language }) => {
             
             {description && (
               <motion.p 
-                className="text-white text-xl md:text-2xl lg:text-3xl mb-10 max-w-4xl mx-auto drop-shadow-lg font-medium"
+                className="text-white text-base sm:text-lg md:text-xl lg:text-2xl mb-6 sm:mb-8 md:mb-10 max-w-4xl mx-auto drop-shadow-lg font-medium"
                 style={{textShadow: '0 2px 6px rgba(0,0,0,0.7)'}}
                 initial={{opacity: 0, y: 20}}
                 animate={{opacity: 1, y: 0}}
@@ -414,22 +414,22 @@ const HeroSlider: React.FC<HeroSliderProps> = ({ language }) => {
               initial={{opacity: 0, y: 20}}
               animate={{opacity: 1, y: 0}}
               transition={{duration: 0.5, delay: 0.4}}
-              className="flex flex-wrap justify-center"
+              className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-0"
             >
               <Link 
                 href={`/${language}/rooms`}
-                className="bg-amber-500 hover:bg-amber-600 text-white py-4 px-10 rounded-md text-lg md:text-xl font-semibold inline-flex items-center transition-all duration-300 mx-2 my-2 shadow-xl hover:shadow-2xl hover:-translate-y-1 border-2 border-amber-400"
+                className="w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white py-3 sm:py-4 px-6 sm:px-10 rounded-md text-base sm:text-lg md:text-xl font-semibold inline-flex items-center justify-center transition-all duration-300 sm:mx-2 my-1 sm:my-2 shadow-xl hover:shadow-2xl hover:-translate-y-1 border-2 border-amber-400"
               >
                 {language === 'tr' ? 'Odaları Keşfet' : 'Explore Rooms'}
-                <FaArrowRight className="ml-3 text-xl group-hover:translate-x-1 transition-transform duration-300" />
+                <FaArrowRight className="ml-2 sm:ml-3 text-base sm:text-xl group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
               
               <Link 
                 href={`/${language}/contact`}
-                className="bg-white/90 hover:bg-white text-gray-800 py-4 px-10 rounded-md text-lg md:text-xl font-semibold inline-flex items-center transition-all duration-300 mx-2 my-2 shadow-xl hover:shadow-2xl hover:-translate-y-1 border-2 border-white/50"
+                className="w-full sm:w-auto bg-white/90 hover:bg-white text-gray-800 py-3 sm:py-4 px-6 sm:px-10 rounded-md text-base sm:text-lg md:text-xl font-semibold inline-flex items-center justify-center transition-all duration-300 sm:mx-2 my-1 sm:my-2 shadow-xl hover:shadow-2xl hover:-translate-y-1 border-2 border-white/50"
               >
                 {language === 'tr' ? 'İletişim' : 'Contact'}
-                <FaArrowRight className="ml-3 text-xl group-hover:translate-x-1 transition-transform duration-300" />
+                <FaArrowRight className="ml-2 sm:ml-3 text-base sm:text-xl group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
             </motion.div>
           </motion.div>
@@ -441,37 +441,37 @@ const HeroSlider: React.FC<HeroSliderProps> = ({ language }) => {
         <>
           <motion.button 
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-black/30 hover:bg-amber-500 text-white p-3 rounded-full transition-all duration-300 shadow-lg"
+            className="absolute left-2 sm:left-4 top-1/2 transform -translate-y-1/2 z-20 bg-black/40 hover:bg-amber-500 text-white p-2 sm:p-3 rounded-full transition-all duration-300 shadow-lg"
             disabled={isTransitioning}
             aria-label={language === 'tr' ? 'Önceki' : 'Previous'}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            <FaChevronLeft className="w-6 h-6" />
+            <FaChevronLeft className="w-4 h-4 sm:w-6 sm:h-6" />
           </motion.button>
           
           <motion.button 
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-black/30 hover:bg-amber-500 text-white p-3 rounded-full transition-all duration-300 shadow-lg"
+            className="absolute right-2 sm:right-4 top-1/2 transform -translate-y-1/2 z-20 bg-black/40 hover:bg-amber-500 text-white p-2 sm:p-3 rounded-full transition-all duration-300 shadow-lg"
             disabled={isTransitioning}
             aria-label={language === 'tr' ? 'Sonraki' : 'Next'}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
           >
-            <FaChevronRight className="w-6 h-6" />
+            <FaChevronRight className="w-4 h-4 sm:w-6 sm:h-6" />
           </motion.button>
           
           {/* Noktalar - Daha hoş tasarım */}
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center z-20">
-            <div className="flex space-x-3 bg-black/20 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+          <div className="absolute bottom-4 sm:bottom-8 left-0 right-0 flex justify-center z-20">
+            <div className="flex space-x-2 sm:space-x-3 bg-black/30 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-lg">
               {sliderItems.map((_, index) => (
                 <motion.button
                   key={`dot-${index}`}
                   onClick={() => goToSlide(index)}
                   className={`transition-all duration-300 ${
                     index === currentIndex 
-                      ? 'w-8 h-3 bg-amber-500' 
-                      : 'w-3 h-3 bg-white/70 hover:bg-white/90'
+                      ? 'w-6 sm:w-8 h-2 sm:h-3 bg-amber-500' 
+                      : 'w-2 sm:w-3 h-2 sm:h-3 bg-white/70 hover:bg-white/90'
                   } rounded-full`}
                   aria-label={`${language === 'tr' ? 'Slayt' : 'Slide'} ${index + 1}`}
                   whileHover={{ scale: 1.2 }}

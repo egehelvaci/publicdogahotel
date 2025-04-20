@@ -13,6 +13,72 @@ interface RoomsPageProps {
   };
 }
 
+// Merkezi oda veri alma fonksiyonu (tüm odalar)
+async function fetchRoomsData(lang: string) {
+  try {
+    console.log('[RoomsPage] Oda verileri getiriliyor...');
+    
+    // Timestamp ekleyerek cache'lemeyi önle
+    const timestamp = Date.now();
+    // API URL'sini düzelt - window.location.origin kullan veya tam URL belirt
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : 'https://publicdogahotel.vercel.app');
+    
+    const url = `${baseUrl}/api/rooms?t=${timestamp}`;
+    
+    // API'den verileri al
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 } // Her zaman taze veri
+    });
+    
+    if (!response.ok) {
+      console.error(`[RoomsPage] API yanıtı başarısız: ${response.status}`);
+      throw new Error(`API yanıtı başarısız: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.success && Array.isArray(data.data)) {
+      // API'den dönen veriyi Room formatına dönüştür
+      return data.data.map(room => {
+        // Görsel URL'lerini kontrol et ve düzelt
+        const mainImage = room.mainImageUrl || room.image;
+        // Görselin tam URL olup olmadığını kontrol et
+        const fixedMainImage = mainImage?.startsWith('http') ? 
+          mainImage : 
+          `${baseUrl}${mainImage || '/images/placeholder.jpg'}`;
+        
+        return {
+          id: room.id,
+          name: lang === 'tr' ? room.nameTR : room.nameEN,
+          description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+          image: fixedMainImage,
+          price: lang === 'tr' ? room.priceTR : room.priceEN,
+          capacity: room.capacity,
+          size: room.size,
+          features: lang === 'tr' 
+            ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+            : (Array.isArray(room.featuresEN) ? room.featuresEN : [])
+        };
+      });
+    }
+    
+    console.error('[RoomsPage] API veri formatı geçersiz');
+    throw new Error('API veri formatı geçersiz');
+  } catch (error) {
+    console.error('[RoomsPage] Oda verileri alınırken hata:', error);
+    return null;
+  }
+}
+
 export default function RoomsPage({ params }: RoomsPageProps) {
   // Next.js 15'te params için tipleri düzgün şekilde tanımlıyoruz
   // @ts-ignore - React.use için TypeScript hatalarını görmezden geliyoruz

@@ -21,7 +21,12 @@ async function fetchRoomData(lang: string, id: string) {
   try {
     // Timestamp ekleyerek cache'lemeyi önle
     const timestamp = Date.now();
-    const url = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/rooms/${id}?t=${timestamp}`;
+    
+    // API URL'sini düzelt - window.location.origin kullan veya tam URL belirt
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : 'https://publicdogahotel.vercel.app');
+    
+    const url = `${baseUrl}/api/rooms/${id}?t=${timestamp}`;
     
     console.log(`[RoomDetailPage] API isteği: ${url}`);
     
@@ -48,18 +53,35 @@ async function fetchRoomData(lang: string, id: string) {
       // API'den dönen veriyi Room formatına dönüştür
       const room = data.data;
       
+      // Görsel URL'lerini kontrol et ve düzelt
+      const mainImage = room.mainImageUrl || room.image;
+      // Görselin tam URL olup olmadığını kontrol et
+      const fixedMainImage = mainImage?.startsWith('http') ? 
+        mainImage : 
+        `${baseUrl}${mainImage || '/images/placeholder.jpg'}`;
+      
+      // Galeri görsellerini kontrol et ve düzelt
+      const fixedGallery = Array.isArray(room.gallery) ? 
+        room.gallery.map(img => img?.startsWith('http') ? img : `${baseUrl}${img}`) : 
+        [];
+        
+      // Eğer galeri boşsa, ana görseli ekle  
+      if (fixedGallery.length === 0 && fixedMainImage) {
+        fixedGallery.push(fixedMainImage);
+      }
+      
       return {
         id: room.id,
         name: lang === 'tr' ? room.nameTR : room.nameEN,
         description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-        image: room.mainImageUrl || room.image,
+        image: fixedMainImage,
         price: lang === 'tr' ? room.priceTR : room.priceEN,
         capacity: room.capacity,
         size: room.size,
         features: lang === 'tr' 
           ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
           : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
-        gallery: Array.isArray(room.gallery) ? room.gallery : [],
+        gallery: fixedGallery,
         type: room.type
       };
     }
@@ -83,7 +105,12 @@ const fallbackRooms: { [key: string]: any } = {
       capacity: 2,
       size: 26,
       features: ['Klima', 'Wifi', 'TV', 'Banyo'],
-      gallery: ['/images/rooms/standart/standard-room.jpg']
+      gallery: [
+        '/images/rooms/standart/standard-room.jpg',
+        '/images/rooms/standart/standard-room2.jpg',
+        '/images/rooms/standart/standard-room3.jpg',
+        '/images/rooms/standart/standard-room4.jpg'
+      ]
     }
   ],
   'en': [
@@ -96,7 +123,12 @@ const fallbackRooms: { [key: string]: any } = {
       capacity: 2,
       size: 26,
       features: ['Air Conditioning', 'Wifi', 'TV', 'Bathroom'],
-      gallery: ['/images/rooms/standart/standard-room.jpg']
+      gallery: [
+        '/images/rooms/standart/standard-room.jpg',
+        '/images/rooms/standart/standard-room2.jpg',
+        '/images/rooms/standart/standard-room3.jpg',
+        '/images/rooms/standart/standard-room4.jpg'
+      ]
     }
   ]
 };
