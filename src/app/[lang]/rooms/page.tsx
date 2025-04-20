@@ -269,15 +269,8 @@ export default function RoomsPage({ params }: RoomsPageProps) {
   return (
     <>
       {/* Hero Bölümü */}
-      <section className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden">
-        <Image 
-          src="/images/rooms/rooms-hero.jpg"
-          alt={pageTitle}
-          fill
-          priority
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/70"></div>
+      <section className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden bg-[#169c71]">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40"></div>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
           <motion.h1 
             className="text-3xl md:text-5xl lg:text-7xl font-bold mb-4 text-white text-center drop-shadow-lg"
@@ -288,7 +281,7 @@ export default function RoomsPage({ params }: RoomsPageProps) {
             {pageTitle}
           </motion.h1>
           <motion.div 
-            className="h-1 w-20 bg-[#169c71] mb-6"
+            className="h-1 w-20 bg-white mb-6"
             initial={{ width: 0 }}
             animate={{ width: 80 }}
             transition={{ duration: 1, delay: 0.5 }}
