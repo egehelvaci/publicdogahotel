@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "npx prisma generate && next build",
     "export": "next build",
     "static": "next build && mkdir -p out-static && cp -r .next/static out-static/_next/static",
     "start": "next start",

@@ -10,7 +10,6 @@ import {
   FaSwimmingPool, 
   FaSpa, 
   FaWifi, 
-  FaWhatsapp, 
   FaChevronLeft, 
   FaChevronRight, 
   FaHotel, 
@@ -440,7 +439,7 @@ export default function HomePage({ lang }: HomePageProps) {
 
       {/* Diğer bölümler scrolldown olduğunda görünecek */}
       <div className="relative">
-        {/* Whatsapp Float Button - Artık global layout'ta olduğu için kaldırıldı */}
+
 
         {/* Rooms Section - Enhanced with Glassmorphism */}
         <section className="py-20 bg-gray-100 relative overflow-hidden">

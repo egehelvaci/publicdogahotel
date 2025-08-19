@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone, FaWhatsapp } from 'react-icons/fa';
+import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone } from 'react-icons/fa';
 import RoomGallery from './RoomGallery';
 
 // Sayfayı tamamen dinamik yapmak için
@@ -275,15 +275,7 @@ export default async function RoomDetailPage({ params }: RoomDetailPageProps) {
                 <FaPhone className="mr-2" />
                 {lang === 'tr' ? 'Rezervasyon Yap' : 'Book Now'}
               </a>
-              <a 
-                href={`https://wa.me/905320664808?text=${encodeURIComponent(lang === 'tr' ? 'Merhaba, Rezervasyon hakkında bilgi almak istiyorum' : 'Hello, I would like to get information about reservation')}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg transition-colors duration-300 font-medium shadow-lg flex items-center justify-center"
-              >
-                <FaWhatsapp className="mr-2 text-lg" />
-                {lang === 'tr' ? 'WhatsApp ile Bilgi Al' : 'Get Info via WhatsApp'}
-              </a>
+
             </div>
           </div>
         </div>

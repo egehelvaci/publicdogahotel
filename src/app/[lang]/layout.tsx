@@ -5,7 +5,7 @@ import AnimatedLayout from "./AnimatedLayout";
 import Footer from "../components/Footer";
 import { metadata as baseMetadata } from "./i18n-metadata";
 import { ScrollProgressBar } from "../../components/micro-interactions/MicroInteractions";
-import WhatsAppButton from "../components/WhatsAppButton";
+
 import MobileFixStyles from "../components/MobileFixStyles";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -35,8 +35,6 @@ export default async function LangLayout({
   const resolvedParams = await params;
   const lang = resolvedParams.lang || 'tr';
   
-  // WhatsApp butonu artık kendi içinde admin kontrolü yapıyor
-
   return (
     <div className={inter.className + " bg-gray-50 text-gray-900"}>
         <ScrollProgressBar />
@@ -44,7 +42,6 @@ export default async function LangLayout({
         <AnimatedLayout>
           {children}
         </AnimatedLayout>
-        <WhatsAppButton language={lang} />
         <Footer lang={lang} />
     </div>
   );

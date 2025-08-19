@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaFacebookF, FaTwitter, FaInstagram, FaWhatsapp, FaClock } from 'react-icons/fa';
+import { FaPhone, FaEnvelope, FaMapMarkerAlt, FaFacebookF, FaTwitter, FaInstagram, FaClock } from 'react-icons/fa';
 import { getRoomsForLanguage } from '../data/rooms';
 import CookieConsent from './CookieConsent';
 import Image from 'next/image';
@@ -29,8 +29,7 @@ export default function Footer({ lang: propLang }: FooterProps) {
       ? 'Ölüdeniz, Ovacık Cd. 85 Sokak No:71, 48300 Fethiye/Muğla'
       : 'Oludeniz, Ovacik St. 85 Street No:71, 48300 Fethiye/Mugla, Turkey',
     phone: '0252 616 61 80',
-    email: 'info@dogahoteloludeniz.com',
-    whatsapp: '+90 532 066 48 08'
+    email: 'info@dogahoteloludeniz.com'
   };
   
   // Oda verilerini yükle
@@ -179,17 +178,7 @@ export default function Footer({ lang: propLang }: FooterProps) {
                   {contactInfo.phone}
                 </a>
               </li>
-              <li className="flex items-center">
-                <FaWhatsapp className="text-gray-400 mr-3" size={16} />
-                <a
-                  href={`https://wa.me/${contactInfo.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(language === 'tr' ? 'Merhaba, bilgi almak istiyorum.' : 'Hello, I would like to get information.')}`}
-                  className="text-gray-400 hover:text-white transition-colors text-sm md:text-base"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {contactInfo.whatsapp}
-                </a>
-              </li>
+
               <li className="flex items-center">
                 <FaEnvelope className="text-gray-400 mr-3" size={16} />
                 <a
