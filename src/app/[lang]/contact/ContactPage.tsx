@@ -7,7 +7,6 @@ import {
   FaPhone, 
   FaEnvelope, 
   FaPaperPlane,
-  FaWhatsapp,
   FaFacebookF,
   FaInstagram,
   FaTwitter,
@@ -27,8 +26,7 @@ export default function ContactPage({ lang }: ContactPageProps) {
       ? 'Ölüdeniz, Ovacık Cd. 85 Sokak No:71, 48300 Fethiye/Muğla'
       : 'Oludeniz, Ovacik St. 85 Street No:71, 48300 Fethiye/Mugla, Turkey',
     phone: '0252 616 61 80',
-    email: 'info@dogahoteloludeniz.com',
-    whatsapp: '+90 532 066 48 08'
+    email: 'info@dogahoteloludeniz.com'
   };
 
   // Google Harita koordinatları - Fethiye, Ölüdeniz koordinatları
@@ -134,15 +132,7 @@ export default function ContactPage({ lang }: ContactPageProps) {
                       <p className="text-gray-600 text-sm md:text-base">
                         {contactInfo.phone || '+90 252 616 61 80'}
                       </p>
-                      <a 
-                        href={`https://wa.me/${contactInfo.whatsapp.replace(/\s+/g, '')}?text=${encodeURIComponent(language === 'tr' ? 'Merhaba, bilgi almak istiyorum.' : 'Hello, I would like to get information.')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-2 inline-flex items-center text-green-600 hover:text-green-700 text-sm font-medium transition-colors"
-                      >
-                        <FaWhatsapp className="mr-1" size={16} />
-                        {language === 'tr' ? 'WhatsApp ile İletişim' : 'Contact via WhatsApp'}
-                      </a>
+
                     </div>
                   </div>
 

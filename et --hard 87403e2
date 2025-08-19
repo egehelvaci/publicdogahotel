@@ -1,0 +1,10 @@
+[33m2f96f28[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Video debug logları eklendi
+[33mb56cdec[m WhatsApp bileşenlerini kaldır ve paket güncellemeleri
+[33m87403e2[m nodemailer versiyonu güncellendi
+[33mc2417e1[m nodemailer paketi eklendi
+[33m72ae55e[m API güvenlik iyileştirmeleri ve veritabanı uyumluluk düzeltmeleri
+[33mdd7b062[m admin api degisiklikleri
+[33m921b026[m[33m ([m[1;31morigin/vercel-api-optimization[m[33m)[m Galeri API endpointlerindeki kalan prisma referanslarını kaldırma
+[33m319bfc6[m API endpointlerini Vercel ve lokal ortam için optimizasyon
+[33m9aa5070[m Vercel için Node.js modülleri yapılandırması ve prisma referanslarını kaldırma
+[33md10ed77[m yeni yapılan değişiklikler
