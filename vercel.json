@@ -5,10 +5,8 @@
     "outputDirectory": ".next",
     "env": {
       "DATABASE_URL": "postgresql://neondb_owner:npg_Z9MCcdwu3YGb@ep-icy-bird-a2ty8aid-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require",
-      "BUNNY_STORAGE_ZONE_NAME": "dogahotelolududeniz",
-      "BUNNY_STORAGE_ZONE_REGION": "de",
-      "BUNNY_ACCESS_KEY": "dogahotelolududeniz",
-      "BUNNY_PASSWORD": "65ee41ba-4eb8-4866-81a6f201a8fb-f71d-4d01",
+      "BUNNY_STORAGE_ZONE": "dogahotelolududeniz",
+      "BUNNY_STORAGE_PASSWORD": "65ee41ba-4eb8-4866-81a6f201a8fb-f71d-4d01",
       "BUNNY_CDN_HOSTNAME": "dogahotelolududeniz.b-cdn.net",
       "NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY": "public_pN6cJbvfbzQHZXcDYBNQGZa10JM="
     }
