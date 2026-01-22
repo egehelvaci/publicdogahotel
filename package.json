@@ -41,7 +41,7 @@
     "intersection-observer": "^0.12.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.488.0",
-    "next": "15.2.4",
+    "next": "^16.1.4",
     "next-intl": "^4.0.2",
     "next-transpile-modules": "^10.0.1",
     "node-fetch": "^2.7.0",
@@ -70,7 +70,6 @@
     "yet-another-react-lightbox": "^3.22.0"
   },
   "devDependencies": {
-    "prisma": "6.6.0",
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -78,6 +77,7 @@
     "css-loader": "^7.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
+    "prisma": "6.6.0",
     "style-loader": "^4.0.0",
     "ts-node": "^10.9.2"
   }
