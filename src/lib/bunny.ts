@@ -1,12 +1,6 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import slugify from 'slugify';
 
-// Bunny.net Storage için konfigürasyon
-const STORAGE_ZONE = process.env.BUNNY_STORAGE_ZONE?.trim();
-const STORAGE_PASSWORD = process.env.BUNNY_STORAGE_PASSWORD?.trim();
-const CDN_HOSTNAME = process.env.BUNNY_CDN_HOSTNAME?.trim();
-
-// Dosyayı Bunny.net'e yükleme
+// Dosyayı Bunny.net'e yükleme (HTTP API)
 export async function uploadToBunny(params: {
   file: File;
   maxSizeInBytes?: number;
@@ -66,28 +60,31 @@ export async function uploadToBunny(params: {
       contentType = extension ? getMimeType(extension) : 'application/octet-stream';
     }
 
-    const s3Client = new S3Client({
-      region: 'de',
-      endpoint: 'https://storage.bunnycdn.com',
-      credentials: {
-        accessKeyId: storageZone,
-        secretAccessKey: password
-      },
-      forcePathStyle: false
-    });
-
     const fullPath = `${path}/${fileName}`;
     const arrayBuffer = await file.arrayBuffer();
-    const bodyBuffer = Buffer.from(arrayBuffer);
+    const buffer = Buffer.from(arrayBuffer);
 
-    const command = new PutObjectCommand({
-      Bucket: storageZone,
-      Key: fullPath,
-      Body: bodyBuffer,
-      ContentType: contentType
+    // Bunny HTTP API ile yükle
+    const uploadUrl = `https://storage.bunnycdn.com/${storageZone}/${fullPath}`;
+    
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'AccessKey': password,
+        'Content-Type': contentType,
+      },
+      body: buffer
     });
 
-    await s3Client.send(command);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Bunny upload error:', response.status, errorText);
+      return {
+        success: false,
+        fileUrl: '',
+        message: `Yukleme hatasi: ${response.status}`
+      };
+    }
 
     const fileUrl = `https://${cdnHostname || `${storageZone}.b-cdn.net`}/${fullPath}`;
     
@@ -116,27 +113,21 @@ export const deleteFromBunny = async (fileId: string) => {
     }
 
     const sanitizedFileId = fileId.replace(/[^a-zA-Z0-9-_/.]/g, '-');
+    const deleteUrl = `https://storage.bunnycdn.com/${storageZone}/${sanitizedFileId}`;
     
-    const s3Client = new S3Client({
-      region: 'de',
-      endpoint: 'https://storage.bunnycdn.com',
-      credentials: {
-        accessKeyId: storageZone,
-        secretAccessKey: password
-      },
-      forcePathStyle: false
+    const response = await fetch(deleteUrl, {
+      method: 'DELETE',
+      headers: {
+        'AccessKey': password
+      }
     });
-    
-    const command = new DeleteObjectCommand({
-      Bucket: storageZone,
-      Key: sanitizedFileId
-    });
-    
-    const response = await s3Client.send(command);
+
+    if (!response.ok) {
+      throw new Error(`Silme hatasi: ${response.status}`);
+    }
     
     return {
-      success: true,
-      data: response
+      success: true
     };
   } catch (error) {
     console.error('Bunny Silme Hatasi:', error);
