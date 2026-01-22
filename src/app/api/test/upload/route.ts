@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '../../../../lib/tebi';
+import { uploadToBunny } from '../../../../lib/bunny';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,23 +50,23 @@ export async function POST(request: NextRequest) {
     
     console.log(`Test API: ${fileName} yükleniyor...`);
     
-    // Tebi.io yapılandırmasını kontrol et
-    const apiKey = process.env.TEBI_API_KEY;
-    const masterKey = process.env.TEBI_MASTER_KEY;
-    const bucket = process.env.TEBI_BUCKET;
+    // Bunny.net yapılandırmasını kontrol et
+    const accessKey = process.env.BUNNY_ACCESS_KEY;
+    const password = process.env.BUNNY_PASSWORD;
+    const storageZone = process.env.BUNNY_STORAGE_ZONE_NAME;
     
     // Detaylı yapılandırma bilgilerini logla (hata ayıklama için)
-    console.log('Test API: Tebi.io yapılandırması (DETAYLI):', { 
-      apiKey: apiKey ? apiKey.substring(0, 5) + '...' : 'tanımlanmamış',
-      apiKeyLength: apiKey?.length,
-      masterKey: masterKey ? masterKey.substring(0, 5) + '...' : 'tanımlanmamış',
-      masterKeyLength: masterKey?.length,
-      bucket: bucket || 'tanımlanmamış',
+    console.log('Test API: Bunny.net yapılandırması (DETAYLI):', { 
+      accessKey: accessKey ? accessKey.substring(0, 5) + '...' : 'tanımlanmamış',
+      accessKeyLength: accessKey?.length,
+      password: password ? password.substring(0, 5) + '...' : 'tanımlanmamış',
+      passwordLength: password?.length,
+      storageZone: storageZone || 'tanımlanmamış',
     });
     
     // Ortam değişkenleri ayarlı değilse hata ver
-    if (!apiKey || !masterKey || !bucket) {
-      console.error('Test API: Tebi.io yapılandırması eksik');
+    if (!accessKey || !password || !storageZone) {
+      console.error('Test API: Bunny.net yapılandırması eksik');
       return NextResponse.json(
         { 
           success: false, 
@@ -78,14 +78,14 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('Test API: Etkin yapılandırma:', {
-      apiKey: apiKey.substring(0, 5) + '...',
-      masterKey: masterKey.substring(0, 5) + '...',  
-      bucket
+      accessKey: accessKey.substring(0, 5) + '...',
+      password: password.substring(0, 5) + '...',  
+      storageZone
     });
     
     try {
-      // Tebi.io'ya yükle
-      console.log('Test API: Tebi.io yükleme işlemi başlatılıyor...');
+      // Bunny.net'e yükle
+      console.log('Test API: Bunny.net yükleme işlemi başlatılıyor...');
       
       // File nesnesini oluşturmadan önce detaylı log
       console.log('Test API: Dosya bilgileri (yükleme öncesi):', {
@@ -102,13 +102,13 @@ export async function POST(request: NextRequest) {
         size: fileObj.size
       });
       
-      const result = await uploadToTebi({
+      const result = await uploadToBunny({
         file: fileObj,
         path: folder
       });
       
       // Yanıtın tüm detaylarını inceleme
-      console.log('Test API: uploadToTebi yanıtı (ham):', JSON.stringify(result));
+      console.log('Test API: uploadToBunny yanıtı (ham):', JSON.stringify(result));
       
       // URL kontrolü
       if (!result.fileUrl) {
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
         url: result.fileUrl
       });
     } catch (uploadError) {
-      console.error('Test API: Tebi.io yükleme hatası:', uploadError);
+      console.error('Test API: Bunny.net yükleme hatası:', uploadError);
       
       let errorMessage = 'Dosya yüklenirken bir hata oluştu';
       

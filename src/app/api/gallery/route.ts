@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { v4 as uuidv4 } from 'uuid';
 import { executeQuery } from '../../../lib/db';
-import { uploadToTebi } from '../../../lib/tebi';
+import { uploadToBunny } from '../../../lib/bunny';
 import { notifyGalleryUpdated } from '../websocket/route';
 
 // Galeri öğesi arayüzü

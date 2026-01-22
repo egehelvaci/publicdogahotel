@@ -30,7 +30,7 @@ export default function UploadTestPage() {
   
   return (
     <div className="container mx-auto py-10 px-4">
-      <h1 className="text-3xl font-bold mb-6">Tebi.io Yükleme Testi</h1>
+      <h1 className="text-3xl font-bold mb-6">Bunny.net Yükleme Testi</h1>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
@@ -116,14 +116,16 @@ export default function UploadTestPage() {
       </div>
       
       <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Tebi.io API Kullanımı</h2>
+        <h2 className="text-xl font-semibold mb-4">Bunny.net API Kullanımı</h2>
         
         <pre className="bg-gray-100 p-4 rounded overflow-x-auto text-sm">
-{`// Tebi.io API Ayarları (.env.local)
-# Tebi.io çoklu protokol desteği
-TEBI_BUCKET=dogahotelfethiye     # Bucket adı
-TEBI_API_KEY=**********          # Bucket Key (S3 erişim için)
-TEBI_MASTER_KEY=**********       # Bucket Secret (S3 erişim için)
+{`// Bunny.net API Ayarları (.env.local)
+# Bunny.net Storage ve CDN ayarları
+BUNNY_STORAGE_ZONE_NAME=*****    # Storage Zone adı
+BUNNY_STORAGE_ZONE_REGION=de     # Region (de, uk, ny, la, sg, syd)
+BUNNY_ACCESS_KEY=**********      # Storage Zone Access Key
+BUNNY_PASSWORD=**********        # Storage Zone Password
+BUNNY_CDN_HOSTNAME=*****.b-cdn.net # CDN hostname
 
 // MediaUploader bileşeni kullanımı
 <MediaUploader
@@ -133,17 +135,17 @@ TEBI_MASTER_KEY=**********       # Bucket Secret (S3 erişim için)
   apiEndpoint="/api/test/upload"
 />
 
-// Video görüntüleme - S3 protokolü
+// Video görüntüleme - Bunny CDN
 <video
-  src="https://s3.tebi.io/dogahotelfethiye/test/ornek.mp4"
+  src="https://your-storage.b-cdn.net/test/ornek.mp4"
   width="100%"
   height={300}
   controls
 />
 
-// Görsel görüntüleme - S3 protokolü
+// Görsel görüntüleme - Bunny CDN
 <img
-  src="https://s3.tebi.io/dogahotelfethiye/test/ornek.jpg"
+  src="https://your-storage.b-cdn.net/test/ornek.jpg"
   alt="Resim açıklaması"
   width={400}
   height={300}
