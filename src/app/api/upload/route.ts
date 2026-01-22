@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '../../../lib/tebi';
+import { uploadToBunny } from '../../../lib/bunny';
 
 // Dynamic API - Önbelleğe alınmasını engeller
 export const dynamic = 'force-dynamic';
@@ -14,7 +14,7 @@ const ALLOWED_TYPES = [
 ];
 
 export async function POST(request: NextRequest) {
-  console.log('Tebi Upload API: İstek alındı');
+  console.log('Bunny Upload API: İstek alındı');
   
   try {
     // Form verisini al
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const folder = (formData.get('folder') as string) || 'services';
     
     if (!file) {
-      console.error('Tebi Upload API: Dosya bulunamadı');
+      console.error('Bunny Upload API: Dosya bulunamadı');
       return NextResponse.json(
         { success: false, message: 'Dosya yüklenmedi' },
         { status: 400 }
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     }
     
     // Dosya bilgilerini logla
-    console.log(`Tebi Upload API: Dosya alındı - İsim: ${file.name}, Tür: ${file.type}, Boyut: ${file.size} bytes`);
+    console.log(`Bunny Upload API: Dosya alındı - İsim: ${file.name}, Tür: ${file.type}, Boyut: ${file.size} bytes`);
     if (thumbnailFile) {
-      console.log(`Tebi Upload API: Thumbnail alındı - İsim: ${thumbnailFile.name}, Tür: ${thumbnailFile.type}, Boyut: ${thumbnailFile.size} bytes`);
+      console.log(`Bunny Upload API: Thumbnail alındı - İsim: ${thumbnailFile.name}, Tür: ${thumbnailFile.type}, Boyut: ${thumbnailFile.size} bytes`);
     }
     
     // Dosya tipi kontrolü
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Tebi.io'ya dosyayı yükle
-    const tebiResult = await uploadToTebi({
+    // Bunny.net'e dosyayı yükle
+    const bunnyResult = await uploadToBunny({
       file,
       maxSizeInBytes: MAX_FILE_SIZE,
       checkFileType: true,
@@ -62,10 +62,10 @@ export async function POST(request: NextRequest) {
       path: `dogahotel/${folder}`
     });
     
-    if (!tebiResult.success) {
-      console.error('Tebi Upload API: Yükleme hatası', tebiResult.message);
+    if (!bunnyResult.success) {
+      console.error('Bunny Upload API: Yükleme hatası', bunnyResult.message);
       return NextResponse.json(
-        { success: false, message: tebiResult.message || 'Dosya yüklenemedi' },
+        { success: false, message: bunnyResult.message || 'Dosya yüklenemedi' },
         { status: 500 }
       );
     }
@@ -75,13 +75,13 @@ export async function POST(request: NextRequest) {
     if (thumbnailFile && file.type.startsWith('video/')) {
       try {
         // Thumbnail dosya bilgilerini kontrol et
-        console.log(`Tebi Upload API: Video thumbnail'i işleniyor - İsim: ${thumbnailFile.name}, Boyut: ${thumbnailFile.size} bytes`);
+        console.log(`Bunny Upload API: Video thumbnail'i işleniyor - İsim: ${thumbnailFile.name}, Boyut: ${thumbnailFile.size} bytes`);
         
         if (thumbnailFile.size === 0) {
-          console.warn('Tebi Upload API: Thumbnail dosya boyutu 0, yükleme atlanıyor');
+          console.warn('Bunny Upload API: Thumbnail dosya boyutu 0, yükleme atlanıyor');
         } else {
           // Thumbnail'i yükle
-          const thumbResult = await uploadToTebi({
+          const thumbResult = await uploadToBunny({
             file: thumbnailFile,
             maxSizeInBytes: 5 * 1024 * 1024, // 5MB thumbnail için yeterli
             checkFileType: true,
@@ -91,24 +91,24 @@ export async function POST(request: NextRequest) {
           
           if (thumbResult.success) {
             thumbnailUrl = thumbResult.fileUrl;
-            console.log(`Tebi Upload API: Thumbnail başarıyla yüklendi: ${thumbnailUrl}`);
+            console.log(`Bunny Upload API: Thumbnail başarıyla yüklendi: ${thumbnailUrl}`);
           } else {
-            console.error('Tebi Upload API: Thumbnail yükleme hatası:', thumbResult.message);
+            console.error('Bunny Upload API: Thumbnail yükleme hatası:', thumbResult.message);
           }
         }
       } catch (thumbError) {
-        console.error('Tebi Upload API: Thumbnail yüklenirken hata:', thumbError);
+        console.error('Bunny Upload API: Thumbnail yüklenirken hata:', thumbError);
         // Thumbnail yüklenemese bile ana dosya yüklendiyse devam et
       }
     }
     
-    console.log(`Tebi Upload API: Dosya başarıyla yüklendi: ${tebiResult.fileUrl}`);
+    console.log(`Bunny Upload API: Dosya başarıyla yüklendi: ${bunnyResult.fileUrl}`);
     
     // Başarılı yanıt döndür
     return NextResponse.json({
       success: true,
-      filePath: tebiResult.fileUrl,
-      url: tebiResult.fileUrl,
+      filePath: bunnyResult.fileUrl,
+      url: bunnyResult.fileUrl,
       fileName: file.name,
       originalName: file.name,
       fileType: file.type,
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       thumbnailUrl: thumbnailUrl || undefined
     });
   } catch (error) {
-    console.error('Tebi Upload API: Hata:', error);
+    console.error('Bunny Upload API: Hata:', error);
     return NextResponse.json(
       { success: false, message: `Dosya yüklenemedi: ${(error as Error).message}` },
       { status: 500 }

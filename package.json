@@ -5,16 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
-    "build": "npx prisma generate && next build",
+    "build": "next build",
     "export": "next build",
     "static": "next build && mkdir -p out-static && cp -r .next/static out-static/_next/static",
     "start": "next start",
     "lint": "next lint",
-    "prisma:seed": "node prisma/seed.js",
-    "postinstall": "npx prisma generate"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+    "prisma:seed": "node prisma/seed.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.787.0",
@@ -25,7 +21,7 @@
     "@headlessui/react": "^2.2.1",
     "@hello-pangea/dnd": "^18.0.1",
     "@heroicons/react": "^2.2.0",
-    "@prisma/client": "^6.6.0",
+    "@prisma/client": "6.6.0",
     "@shadcn/ui": "^0.0.4",
     "@supabase/supabase-js": "^2.49.4",
     "@types/js-cookie": "^3.0.6",
@@ -45,10 +41,11 @@
     "intersection-observer": "^0.12.2",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.488.0",
-    "next": "15.2.8",
+    "next": "15.2.4",
     "next-intl": "^4.0.2",
     "next-transpile-modules": "^10.0.1",
     "node-fetch": "^2.7.0",
+    "nodemailer": "^6.9.9",
     "pg": "^8.14.1",
     "postcss": "^8.4.33",
     "postcss-preset-env": "^9.6.0",
@@ -73,6 +70,7 @@
     "yet-another-react-lightbox": "^3.22.0"
   },
   "devDependencies": {
+    "prisma": "6.6.0",
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^18",
@@ -80,7 +78,6 @@
     "css-loader": "^7.1.2",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
-    "prisma": "^6.6.0",
     "style-loader": "^4.0.0",
     "ts-node": "^10.9.2"
   }

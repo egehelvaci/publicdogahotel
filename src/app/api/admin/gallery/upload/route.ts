@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '../../../../../lib/tebi';
+import { uploadToBunny } from '../../../../../lib/bunny';
 import { executeQuery } from '../../../../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -59,32 +59,32 @@ export async function POST(request: NextRequest) {
     }
     
     try {
-      console.log('Tebi yükleme hazırlıkları başlıyor...');
+      console.log('Bunny yükleme hazırlıkları başlıyor...');
       
-      // Tebi'ye yükle
+      // Bunny.net'e yükle
       const fileName = `gallery_${Date.now()}_${file.name}`;
       console.log(`Yükleme yolu: dogahotel/gallery, Dosya: ${fileName}`);
       
-      const result = await uploadToTebi({
+      const result = await uploadToBunny({
         file,
         path: 'dogahotel/gallery'
       });
       
-      console.log('Tebi yanıtı:', JSON.stringify(result));
+      console.log('Bunny yanıtı:', JSON.stringify(result));
       
       if (!result.success || !result.fileUrl) {
-        console.error('Tebi yükleme başarısız:', result);
+        console.error('Bunny yükleme başarısız:', result);
         return NextResponse.json(
           { 
             success: false, 
-            message: 'Tebi\'ye dosya yükleme başarısız: ' + (result.message || 'Bilinmeyen hata'),
+            message: 'Bunny.net\'e dosya yükleme başarısız: ' + (result.message || 'Bilinmeyen hata'),
             error: result.message
           },
           { status: 500 }
         );
       }
       
-      console.log(`Tebi'ye yüklendi. URL: ${result.fileUrl}`);
+      console.log(`Bunny.net'e yüklendi. URL: ${result.fileUrl}`);
       console.log('Medya türü:', isVideo ? 'Video' : 'Resim');
     
       // Galeri öğesini veritabanına ekle
@@ -147,13 +147,13 @@ export async function POST(request: NextRequest) {
           type: resourceType
         }
       });
-    } catch (tebiError) {
-      console.error('Tebi yükleme işlemi sırasında hata:', tebiError);
+    } catch (bunnyError) {
+      console.error('Bunny yükleme işlemi sırasında hata:', bunnyError);
       return NextResponse.json(
         { 
           success: false, 
-          message: 'Tebi yükleme işlemi başarısız: ' + (tebiError instanceof Error ? tebiError.message : 'Bilinmeyen hata'),
-          error: tebiError instanceof Error ? tebiError.stack : null 
+          message: 'Bunny yükleme işlemi başarısız: ' + (bunnyError instanceof Error ? bunnyError.message : 'Bilinmeyen hata'),
+          error: bunnyError instanceof Error ? bunnyError.stack : null 
         },
         { status: 500 }
       );

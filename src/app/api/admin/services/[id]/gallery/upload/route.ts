@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '../../../../../../../lib/tebi';
+import { uploadToBunny } from '../../../../../../../lib/bunny';
 import { executeQuery } from '../../../../../../../lib/db';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -54,10 +54,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       );
     }
     
-    console.log(`Servis Galeri API: Dosya Tebi.io'ya yükleniyor - Servis ID: ${serviceId}, İsim: ${file.name}, Boyut: ${file.size} bytes`);
+    console.log(`Servis Galeri API: Dosya Bunny.net'e yükleniyor - Servis ID: ${serviceId}, İsim: ${file.name}, Boyut: ${file.size} bytes`);
     
-    // Tebi.io'ya yükle
-    const tebiResult = await uploadToTebi({
+    // Bunny.net'e yükle
+    const bunnyResult = await uploadToBunny({
       file,
       maxSizeInBytes: MAX_FILE_SIZE,
       checkFileType: true,
@@ -65,15 +65,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       path: `dogahotel/services/${serviceId}`
     });
     
-    if (!tebiResult.success) {
-      console.error('Servis Galeri API: Tebi yükleme hatası', tebiResult.message);
+    if (!bunnyResult.success) {
+      console.error('Servis Galeri API: Bunny yükleme hatası', bunnyResult.message);
       return NextResponse.json(
-        { error: tebiResult.message || 'Dosya yüklenemedi', success: false },
+        { error: bunnyResult.message || 'Dosya yüklenemedi', success: false },
         { status: 500 }
       );
     }
     
-    console.log(`Servis Galeri API: Dosya başarıyla yüklendi: ${tebiResult.fileUrl}`);
+    console.log(`Servis Galeri API: Dosya başarıyla yüklendi: ${bunnyResult.fileUrl}`);
     
     // Sıra numarasını belirle
     const orderQuery = `
@@ -106,15 +106,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const insertResult = await executeQuery(insertQuery, [
       uuidv4(),
       serviceId,
-      tebiResult.fileUrl,
+      bunnyResult.fileUrl,
       orderNumber
     ]);
     
     // Başarılı yanıt döndür
     return NextResponse.json({
       success: true,
-      filePath: tebiResult.fileUrl,
-      url: tebiResult.fileUrl,
+      filePath: bunnyResult.fileUrl,
+      url: bunnyResult.fileUrl,
       fileName: file.name,
       fileType: file.type,
       galleryItem: insertResult.rows[0]

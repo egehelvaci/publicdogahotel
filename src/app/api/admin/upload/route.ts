@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToTebi } from '../../../../lib/tebi';
+import { uploadToBunny } from '../../../../lib/bunny';
 
 // Yüklenebilecek maksimum dosya boyutu (10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    console.log(`Admin Upload API: Dosya Tebi.io'ya yükleniyor - İsim: ${file.name}, Boyut: ${file.size} bytes`);
+    console.log(`Admin Upload API: Dosya Bunny.net'e yükleniyor - İsim: ${file.name}, Boyut: ${file.size} bytes`);
     
-    // Tebi.io'ya yükle
-    const tebiResult = await uploadToTebi({
+    // Bunny.net'e yükle
+    const bunnyResult = await uploadToBunny({
       file,
       maxSizeInBytes: MAX_FILE_SIZE,
       checkFileType: true,
@@ -48,21 +48,21 @@ export async function POST(request: NextRequest) {
       path: `dogahotel/${folder}`
     });
     
-    if (!tebiResult.success) {
-      console.error('Admin Upload API: Tebi yükleme hatası', tebiResult.message);
+    if (!bunnyResult.success) {
+      console.error('Admin Upload API: Bunny yükleme hatası', bunnyResult.message);
       return NextResponse.json(
-        { error: tebiResult.message || 'Dosya yüklenemedi' },
+        { error: bunnyResult.message || 'Dosya yüklenemedi' },
         { status: 500 }
       );
     }
     
-    console.log(`Admin Upload API: Dosya başarıyla yüklendi: ${tebiResult.fileUrl}`);
+    console.log(`Admin Upload API: Dosya başarıyla yüklendi: ${bunnyResult.fileUrl}`);
     
     // Başarılı yanıt döndür
     return NextResponse.json({
       success: true,
-      filePath: tebiResult.fileUrl,
-      url: tebiResult.fileUrl,
+      filePath: bunnyResult.fileUrl,
+      url: bunnyResult.fileUrl,
       fileName: file.name,
       fileType: file.type
     });
