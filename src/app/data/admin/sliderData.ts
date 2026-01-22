@@ -15,7 +15,7 @@ export interface SliderItem {
   descriptionTR?: string;
   descriptionEN?: string;
   order: number;
-  active: boolean;
+  active?: boolean;
 }
 
 interface NewSliderItem {
@@ -27,7 +27,6 @@ interface NewSliderItem {
   descriptionEN?: string;
   image: string;
   videoUrl?: string;
-  active?: boolean;
 }
 
 // API bağlantıları
@@ -278,11 +277,9 @@ export async function getSliderData(): Promise<SliderItem[]> {
   }
 }
 
-// Aktif slider öğelerini filtrele ve sırala
+// Slider öğelerini sırala (eski filtreleme kaldırıldı)
 function filterActiveSliderItems(items: SliderItem[]): SliderItem[] {
-  return items
-    .filter(item => item.active)
-    .sort((a, b) => a.order - b.order);
+  return items.sort((a, b) => a.order - b.order);
 }
 
 // Görsel URL'sini düzenle (nesne veya string olabilir)
@@ -336,8 +333,7 @@ export async function addSliderItem(item: NewSliderItem): Promise<SliderItem | n
       descriptionTR: item.descriptionTR?.trim() || null,
       descriptionEN: item.descriptionEN?.trim() || null,
       image: item.image || null,
-      videoUrl: item.videoUrl || null,
-      active: item.active !== undefined ? item.active : true
+      videoUrl: item.videoUrl || null
     };
     
     console.log('İstek gövdesi:', JSON.stringify(processedItem, null, 2));
@@ -595,8 +591,7 @@ function getDefaultSliderData(): SliderItem[] {
       subtitleEN: 'Default Subtitle 1',
       descriptionTR: 'Bu varsayılan bir açıklamadır. API çalışmadığında görünür.',
       descriptionEN: 'This is a default description. Shown when API is not working.',
-      order: 1,
-      active: true
+      order: 1
     },
     {
       id: 'default-2',
@@ -607,8 +602,7 @@ function getDefaultSliderData(): SliderItem[] {
       subtitleEN: 'Default Subtitle 2',
       descriptionTR: 'Bu varsayılan bir açıklamadır. API çalışmadığında görünür.',
       descriptionEN: 'This is a default description. Shown when API is not working.',
-      order: 2,
-      active: true
+      order: 2
     }
   ];
   

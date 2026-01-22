@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery } from '../../../../../../../lib/db';
+import { prisma } from '../../../../../../lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 
 // Client arayüzü tanımlaması
@@ -224,10 +225,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // Client'ı burada tanımlayalım ki her durumda release edilebilsin
-  let client = null;
-
   try {
+    // Next.js 14+ için params'ı asenkron olarak işle
     const serviceId = params.id;
     console.log("İşlenecek servis ID:", serviceId);
     
@@ -289,164 +288,104 @@ export async function PUT(
     const mainImage = body.image || validImages[0];
     console.log("Seçilen ana görsel:", mainImage);
     
-    // Veritabanı kontrolleri
     try {
+      // Bu kısım SQL sorgularını içeriyordu, Prisma'ya çevirdik
       // Servisi kontrol et
-      const serviceCheck = await executeQuery(
-        "SELECT id FROM services WHERE id = $1",
-        [serviceId]
-      );
+      const service = await prisma.service.findUnique({
+        where: { id: serviceId }
+      });
       
-      if (serviceCheck.rows.length === 0) {
+      if (!service) {
         return NextResponse.json(
           { error: 'Servis bulunamadı', success: false },
           { status: 404 }
         );
       }
       
-      // Transaction başlat
-      const beginResult = await executeQuery('BEGIN');
-      client = beginResult.client;
+      console.log("İşlem başlıyor");
       
       try {
-        console.log("Transaction başladı");
-        
-        // 1. Önce ana görseli güncelle
-        // Gönderilen ana görsel veya ilk görsel kullanılır
-        const mainImageToUpdate = mainImage || validImages[0];
-        console.log(`Ana görsel güncelleniyor: ${mainImageToUpdate}`);
-        
-        // Önce güncel ana görsel durumunu logla
-        const currentMainImage = await client.query(
-          `SELECT main_image_url FROM services WHERE id = $1`,
-          [serviceId]
-        );
-        
-        console.log(`Mevcut ana görsel: ${JSON.stringify(currentMainImage.rows[0])}`);
-        
-        // Ana görseli güncelle ve sonuçları debug logu ile göster
-        try {
-          const updateMainImageQuery = `
-            UPDATE services
-            SET 
-              main_image_url = $1,
-              updated_at = CURRENT_TIMESTAMP
-            WHERE id = $2
-            RETURNING id, main_image_url
-          `;
-          
-          const mainImageResult = await client.query(updateMainImageQuery, [mainImageToUpdate, serviceId]);
-          if (mainImageResult.rows.length === 0) {
-            throw new Error('Ana görsel güncellenemedi');
-          }
-          
-          console.log("Ana görsel güncellendi:", { 
-            serviceId, 
-            mainImage: mainImageToUpdate,
-            result: mainImageResult.rows[0]
+        // Tam bir transaction içinde tüm veritabanı işlemlerini yapalım
+        const result = await prisma.$transaction(async (tx) => {
+          // 1. Ana görsel güncelleme
+          const updatedService = await tx.service.update({
+            where: { id: serviceId },
+            data: {
+              ...{
+                "mainImageUrl": mainImage
+              },
+              updatedAt: new Date()
+            }
           });
-        } catch (updateError) {
-          console.error("Ana görsel güncelleme hatası:", updateError);
-          throw updateError;
-        }
-        
-        // 2. Sonra service_gallery tablosundaki eski kayıtları temizle
-        const clearGalleryQuery = `
-          DELETE FROM service_gallery
-          WHERE service_id = $1
-        `;
-        
-        await client.query(clearGalleryQuery, [serviceId]);
-        console.log("Eski galeri kayıtları temizlendi");
-        
-        // 3. Şimdi yeni görselleri ekle
-        for (let i = 0; i < validImages.length; i++) {
-          const imageUrl = validImages[i];
-          const orderNumber = i + 1;
-          const id = uuidv4(); // Her kayıt için benzersiz bir UUID oluştur
           
-          // Burada, doğru sütun adlarını kullanıyoruz
-          const insertGalleryQuery = `
-            INSERT INTO service_gallery
-            (id, service_id, image_url, order_number, created_at)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
-          `;
+          console.log("Ana görsel güncellendi", updatedService);
           
-          try {
-            await client.query(insertGalleryQuery, [id, serviceId, imageUrl, orderNumber]);
-            console.log(`Görsel eklendi: ${imageUrl} (sıra: ${orderNumber}, id: ${id})`);
-          } catch (insertErr) {
-            // Hata durumunu detaylı logla
-            console.error("Görsel ekleme hatası:", insertErr);
-            console.error("Hatalı sorgu parametreleri:", { id, serviceId, imageUrl, orderNumber });
-            throw insertErr;
+          // 2. Eski galeri kayıtlarını silme
+          await tx.serviceGallery.deleteMany({
+            where: { serviceId }
+          });
+          
+          console.log("Eski galeri kayıtları temizlendi");
+          
+          // 3. Yeni görselleri ekleme
+          const galleryItems = [];
+          
+          for (let i = 0; i < validImages.length; i++) {
+            const newItem = await tx.serviceGallery.create({
+              data: {
+                id: uuidv4(),
+                serviceId,
+                imageUrl: validImages[i],
+                orderNumber: i + 1
+              }
+            });
+            
+            galleryItems.push(newItem);
           }
-        }
+          
+          console.log(`${galleryItems.length} adet yeni galeri öğesi eklendi`);
+          
+          return {
+            service: updatedService,
+            galleryItems: galleryItems
+          };
+        });
         
-        // Transaction'ı tamamla
-        await client.query('COMMIT');
-        console.log("Transaction tamamlandı");
+        console.log("İşlem başarıyla tamamlandı");
         
-        // Güncel durumu kontrol et
-        const updatedService = await executeQuery(`
-          SELECT id, main_image_url FROM services WHERE id = $1
-        `, [serviceId]);
-        
-        console.log("İşlem sonrası ana görsel durumu:", updatedService.rows[0]);
-        
+        // Başarılı yanıt
         return NextResponse.json({
           success: true,
           message: 'Servis galerisi başarıyla güncellendi',
           imageCount: validImages.length,
-          mainImage: mainImageToUpdate,
-          serviceId: serviceId,
-          updatedService: updatedService.rows[0]
+          mainImage,
+          serviceId
         });
-      } catch (transactionError) {
-        // Hata durumunda geri al
-        if (client) {
-          try {
-            await client.query('ROLLBACK');
-            console.log("Transaction geri alındı");
-          } catch (rollbackError) {
-            console.error("Rollback sırasında hata:", rollbackError);
-          }
-        }
+      } catch (error) {
+        console.error("Prisma transaction hatası:", error);
         
-        console.error("Transaction hatası:", transactionError);
-        throw transactionError; // Dış catch bloğuna fırlat
-      } 
-    } catch (dbError) {
-      console.error("Veritabanı hatası:", dbError);
-      
-      // Hata mesajını düzenle
-      let errorDetail = 'Veritabanı işlemi sırasında bir hata oluştu';
-      if (dbError.message) {
-        errorDetail = dbError.message;
+        let errorDetail = error instanceof Error ? error.message : String(error);
+        
+        return NextResponse.json(
+          { 
+            error: 'Veritabanı güncellenirken bir hata oluştu', 
+            detail: errorDetail,
+            success: false 
+          },
+          { status: 500 }
+        );
       }
-      
-      if (dbError.code) {
-        errorDetail += ` (Hata kodu: ${dbError.code})`;
-      }
+    } catch (error) {
+      console.error("Genel veritabanı hatası:", error);
       
       return NextResponse.json(
         { 
-          error: 'Veritabanı güncellenirken bir hata oluştu', 
-          detail: errorDetail,
+          error: 'Servis galerisi güncellenirken bir hata oluştu', 
+          detail: error instanceof Error ? error.message : String(error),
           success: false 
         },
         { status: 500 }
       );
-    } finally {
-      // Client'ı serbest bırak (varsa)
-      if (client) {
-        try {
-          client.release();
-          console.log("Database client serbest bırakıldı");
-        } catch (releaseError) {
-          console.error("Client serbest bırakılırken hata:", releaseError);
-        }
-      }
     }
   } catch (error) {
     console.error("Genel hata:", error);

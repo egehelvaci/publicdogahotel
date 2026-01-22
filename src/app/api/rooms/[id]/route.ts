@@ -14,6 +14,16 @@ export async function GET(
 ) {
   try {
     const id = params.id;
+    console.log('Oda detay API çağrıldı, ID:', id);
+    
+    // ID boş, null veya tanımsız ise hata dön
+    if (!id) {
+      console.error('Geçersiz ID:', id);
+      return NextResponse.json(
+        { success: false, message: 'Geçersiz oda ID' },
+        { status: 400 }
+      );
+    }
     
     const query = `
       SELECT 
@@ -32,7 +42,6 @@ export async function GET(
         r.features_en as "featuresEN", 
         r.type, 
         r.room_type_id as "roomTypeId",
-        r.active, 
         r.order_number as "orderNumber",
         r.order_number as order,
         COALESCE(
@@ -48,7 +57,8 @@ export async function GET(
     console.log('Oda verisi çekiliyor, ID:', id);
     const result = await executeQuery(query, [id]);
     
-    if (result.rows.length === 0) {
+    if (!result.rows || result.rows.length === 0) {
+      console.error('Oda bulunamadı, ID:', id);
       return NextResponse.json(
         { success: false, message: 'Oda bulunamadı' },
         { 

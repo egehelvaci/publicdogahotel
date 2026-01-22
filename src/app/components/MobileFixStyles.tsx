@@ -85,6 +85,7 @@ const MobileFixStyles = () => {
         input[type="reset"],
         input[type="button"] {
           touch-action: manipulation;
+          min-height: 44px; /* Apple'ın önerdiği minimum dokunmatik hedef boyutu */
         }
         
         /* Mobil menü ve sayfa içeriği için düzgün kaydırma */
@@ -100,9 +101,39 @@ const MobileFixStyles = () => {
           overflow-y: auto;
           -webkit-overflow-scrolling: touch;
         }
+        
+        /* Hero alanı için mobil düzeltmeler */
+        .h-screen {
+          height: calc(var(--vh, 1vh) * 100) !important;
+        }
+        
+        /* Hero slider içeriği için mobil düzeltmeler */
+        [class*="HeroSlider"] h1 {
+          font-size: 1.75rem !important;
+          line-height: 1.2 !important;
+          margin-bottom: 0.5rem !important;
+        }
+        
+        [class*="HeroSlider"] p {
+          font-size: 0.875rem !important;
+          line-height: 1.4 !important;
+          margin-bottom: 1rem !important;
+        }
+        
+        /* Mobil cihazlarda butonları daha erişilebilir yap */
+        [class*="HeroSlider"] a {
+          padding: 0.625rem 1rem !important;
+          font-size: 0.875rem !important;
+          margin: 0.25rem 0 !important;
+        }
+        
+        /* Mobil cihazlarda içeriği daha yukarı taşı */
+        [class*="HeroSlider"] .container {
+          padding-bottom: 3rem !important;
+        }
       }
     `}</style>
   );
 };
 
-export default MobileFixStyles; 
+export default MobileFixStyles;

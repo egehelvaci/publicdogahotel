@@ -13,10 +13,80 @@ interface RoomsPageProps {
   };
 }
 
+// Merkezi oda veri alma fonksiyonu (tüm odalar)
+async function fetchRoomsData(lang: string) {
+  try {
+    console.log('[RoomsPage] Oda verileri getiriliyor...');
+    
+    // Timestamp ekleyerek cache'lemeyi önle
+    const timestamp = Date.now();
+    // API URL'sini düzelt - window.location.origin kullan veya tam URL belirt
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 
+      (typeof window !== 'undefined' ? window.location.origin : 'https://publicdogahotel.vercel.app');
+    
+    const url = `${baseUrl}/api/rooms?t=${timestamp}`;
+    
+    // API'den verileri al
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store',
+      next: { revalidate: 0 } // Her zaman taze veri
+    });
+    
+    if (!response.ok) {
+      console.error(`[RoomsPage] API yanıtı başarısız: ${response.status}`);
+      throw new Error(`API yanıtı başarısız: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.success && Array.isArray(data.data)) {
+      // API'den dönen veriyi Room formatına dönüştür
+      return data.data.map(room => {
+        // Görsel URL'lerini kontrol et ve düzelt
+        const mainImage = room.mainImageUrl || room.image;
+        // Görselin tam URL olup olmadığını kontrol et
+        const fixedMainImage = mainImage?.startsWith('http') ? 
+          mainImage : 
+          `${baseUrl}${mainImage || '/images/placeholder.jpg'}`;
+        
+        return {
+          id: room.id,
+          name: lang === 'tr' ? room.nameTR : room.nameEN,
+          description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+          image: fixedMainImage,
+          price: lang === 'tr' ? room.priceTR : room.priceEN,
+          capacity: room.capacity,
+          size: room.size,
+          features: lang === 'tr' 
+            ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+            : (Array.isArray(room.featuresEN) ? room.featuresEN : [])
+        };
+      });
+    }
+    
+    console.error('[RoomsPage] API veri formatı geçersiz');
+    throw new Error('API veri formatı geçersiz');
+  } catch (error) {
+    console.error('[RoomsPage] Oda verileri alınırken hata:', error);
+    return null;
+  }
+}
+
 export default function RoomsPage({ params }: RoomsPageProps) {
-  // Next.js 15'te params Promise olduğu için React.use() ile unwrap ediyoruz
+  // Next.js 15'te params için tipleri düzgün şekilde tanımlıyoruz
+  // @ts-ignore - React.use için TypeScript hatalarını görmezden geliyoruz
   const resolvedParams = React.use(params);
-  const lang = resolvedParams.lang;
+  // Tip kontrolü ekliyoruz
+  const lang = typeof resolvedParams === 'object' && resolvedParams && 'lang' in resolvedParams
+    ? resolvedParams.lang as string 
+    : 'tr'; // Varsayılan dil
   
   const [rooms, setRooms] = useState<any[]>([]);
   const [filteredRooms, setFilteredRooms] = useState<any[]>([]);
@@ -33,10 +103,14 @@ export default function RoomsPage({ params }: RoomsPageProps) {
     const loadRooms = async () => {
       try {
         setLoading(true);
+        
         // No-store ile veri çekme, API önbelleğini bypass etmek için
+        const timestamp = Date.now();
         const fetchUrl = typeof window !== 'undefined' 
-          ? `${window.location.origin}/api/rooms?t=${Date.now()}` 
+          ? `${window.location.origin}/api/rooms?t=${timestamp}` 
           : 'http://localhost:3000/api/rooms';
+          
+        console.log('API isteği yapılıyor:', fetchUrl);
           
         const response = await fetch(fetchUrl, {
           cache: 'no-store',
@@ -47,21 +121,23 @@ export default function RoomsPage({ params }: RoomsPageProps) {
         });
         
         if (!response.ok) {
+          console.error('API yanıtı hatalı:', response.status, response.statusText);
           throw new Error('Oda verileri alınamadı');
         }
         
         const data = await response.json();
+        console.log('API yanıtı:', data);
+        
         let roomsData;
         
         if (data.success) {
           // API'den alınan ham verileri dile göre işle
           roomsData = data.data
-            .filter((room: any) => room.active)
             .map((room: any) => ({
               id: room.id,
               name: lang === 'tr' ? room.nameTR : room.nameEN,
               description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-              image: room.image,
+              image: room.image || room.mainImageUrl,
               price: lang === 'tr' ? room.priceTR : room.priceEN,
               capacity: room.capacity,
               size: room.size,
@@ -169,18 +245,32 @@ export default function RoomsPage({ params }: RoomsPageProps) {
     ? 'Konfor ve lüksün buluştuğu Doğa Hotel odalarında unutulmaz bir konaklama deneyimi yaşayın.'
     : 'Experience an unforgettable stay in Doğa Hotel rooms where comfort and luxury meet.';
 
+  // Oda sonuçları boş olduğunda gösterilecek bileşen
+  const NoResults = () => (
+    <div className="w-full py-16 flex flex-col items-center justify-center">
+      <div className="w-48 h-48 mb-6 opacity-60">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="8" y1="12" x2="16" y2="12"></line>
+          <line x1="12" y1="8" x2="12" y2="16"></line>
+        </svg>
+      </div>
+      <h3 className="text-xl md:text-2xl text-gray-700 font-medium mb-2">
+        {lang === 'tr' ? 'Sonuç Bulunamadı' : 'No Results Found'}
+      </h3>
+      <p className="text-gray-500 text-center max-w-md">
+        {lang === 'tr' 
+          ? 'Arama kriterlerinize uygun oda bulunamadı. Lütfen farklı filtreler deneyin.' 
+          : 'No rooms match your search criteria. Please try different filters.'}
+      </p>
+    </div>
+  );
+
   return (
     <>
       {/* Hero Bölümü */}
-      <section className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden">
-        <Image 
-          src="/images/rooms/rooms-hero.jpg"
-          alt={pageTitle}
-          fill
-          priority
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 to-black/70"></div>
+      <section className="relative h-[50vh] md:h-[60vh] w-full overflow-hidden bg-[#169c71]">
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 to-black/40"></div>
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
           <motion.h1 
             className="text-3xl md:text-5xl lg:text-7xl font-bold mb-4 text-white text-center drop-shadow-lg"
@@ -191,7 +281,7 @@ export default function RoomsPage({ params }: RoomsPageProps) {
             {pageTitle}
           </motion.h1>
           <motion.div 
-            className="h-1 w-20 bg-[#169c71] mb-6"
+            className="h-1 w-20 bg-white mb-6"
             initial={{ width: 0 }}
             animate={{ width: 80 }}
             transition={{ duration: 1, delay: 0.5 }}
@@ -249,45 +339,29 @@ export default function RoomsPage({ params }: RoomsPageProps) {
                   </button>
                 ))}
               </div>
+              
+              <div className="relative flex items-center w-full md:w-auto mt-3 md:mt-0">
+                <FaSearch className="absolute left-3 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder={lang === 'tr' ? 'Oda ara...' : 'Search rooms...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border border-gray-200 rounded-full w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-[#169c71] focus:border-transparent"
+                />
+              </div>
             </div>
           </motion.div>
           
-          {/* Yükleniyor */}
+          {/* Yükleniyor göstergesi */}
           {loading && (
-            <div className="flex justify-center items-center min-h-[400px]">
-              <div className="w-16 h-16 border-4 border-gray-200 border-t-[#169c71] rounded-full animate-spin"></div>
+            <div className="flex justify-center items-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#169c71]"></div>
             </div>
           )}
-
-          {/* Oda bulunamadı */}
-          {!loading && filteredRooms.length === 0 && (
-            <div className="text-center py-20">
-              <Image 
-                src="/images/no-results.svg" 
-                alt="No results" 
-                width={200} 
-                height={200} 
-                className="mx-auto mb-8"
-              />
-              <h3 className="text-2xl font-semibold text-gray-800 mb-2">
-                {lang === 'tr' ? 'Oda bulunamadı' : 'No rooms found'}
-              </h3>
-              <p className="text-gray-600 mb-6">
-                {lang === 'tr' 
-                  ? 'Arama kriterlerinize uygun oda bulunamadı. Lütfen filtrelerinizi değiştirin.' 
-                  : 'No rooms match your search criteria. Please try different filters.'}
-              </p>
-              <button 
-                className="px-6 py-3 bg-[#169c71] text-white rounded-lg hover:bg-[#117a59] transition-colors shadow-md"
-                onClick={() => {
-                  setActiveFilter('all');
-                  setSearchTerm('');
-                }}
-              >
-                {lang === 'tr' ? 'Filtreleri Temizle' : 'Clear Filters'}
-              </button>
-            </div>
-          )}
+          
+          {/* Sonuç bulunamadı mesajı */}
+          {!loading && filteredRooms.length === 0 && <NoResults />}
           
           {/* Odalar Listesi */}
           <AnimatePresence mode="wait">

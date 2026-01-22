@@ -1,6 +1,6 @@
 // Admin panelindeki oda verileri ile senkronize olacak fonksiyonlar
 import { getRoomsData, getSiteRoomById } from './admin/roomsData'; // Added getSiteRoomById
-import { getBaseUrl, isClient, isServer } from '@/lib/utils';
+import { getBaseUrl, isClient, isServer, getApiUrl } from '@/lib/utils';
 
 // Türkçe dil için oda verileri
 const roomsTR: Room[] = [
@@ -240,54 +240,86 @@ export async function getRoomsForLanguage(lang: string): Promise<Room[]> {
     console.log(`[getRoomsForLanguage] Çalıştı, dil: ${lang}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
     
     try {
-      // Timestamp ekleyerek cache'lemeyi önle
-      const timestamp = Date.now();
+      // API'ye istek yapmayı dene - Önce statik verileri hazırla (yedek olarak)
+      const staticData = lang === 'tr' ? roomsTR : roomsEN;
+      
+      // Temel URL'yi al
       const baseUrl = getBaseUrl();
+      console.log(`[getRoomsForLanguage] Kullanılan temel URL: ${baseUrl}`);
       
-      // Public API endpoint'ini kullan
-      const url = `${baseUrl}/api/public/rooms?lang=${lang}&t=${timestamp}`;
-      console.log(`[getRoomsForLanguage] API isteği yapılıyor: ${url}`);
-      
-      // Direkt API'den odaları alma
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
-        cache: 'no-store',
-        next: { revalidate: 0 }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API yanıtı başarısız: ${response.status}, ${errorText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        // API'den alınan ham verileri dile göre işle
-        return result.data.map((room: any) => ({
-          id: room.id,
-          name: lang === 'tr' ? room.nameTR : room.nameEN,
-          description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-          image: room.mainImageUrl || room.image,
-          price: lang === 'tr' ? room.priceTR : room.priceEN,
-          capacity: room.capacity,
-          size: room.size,
-          features: lang === 'tr' 
-            ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
-            : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
-          gallery: Array.isArray(room.gallery) ? room.gallery : [],
-          type: room.type
-        }));
-      } else {
-        console.warn('[getRoomsForLanguage] API başarısız yanıt döndü, statik verilere dönülüyor');
-        // API hatası durumunda statik verileri kullan
-        return lang === 'tr' ? roomsTR : roomsEN;
+      // API'leri dene
+      try {
+        // API URL'lerini oluştur
+        const roomsUrl = getApiUrl(`rooms`, { lang });
+        const publicRoomsUrl = getApiUrl(`public/rooms`, { lang });
+        
+        console.log(`[getRoomsForLanguage] Ana API isteği yapılıyor: ${roomsUrl}`);
+        
+        // Ana API'yi dene
+        let response = await fetch(roomsUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          cache: 'no-store',
+          next: { revalidate: 0 }
+        });
+        
+        // Ana API başarısız olursa public API'yi dene
+        if (!response.ok) {
+          console.log(`[getRoomsForLanguage] Ana API başarısız (${response.status}), public API deneniyor...`);
+          console.log(`[getRoomsForLanguage] Public API isteği yapılıyor: ${publicRoomsUrl}`);
+          
+          response = await fetch(publicRoomsUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            },
+            cache: 'no-store',
+            next: { revalidate: 0 }
+          });
+        }
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`API yanıtı başarısız: ${response.status}, ${errorText}`);
+          console.log('[getRoomsForLanguage] API başarısız, statik verilere dönülüyor');
+          // API hatası durumunda statik verileri kullan
+          return staticData;
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data && Array.isArray(result.data)) {
+          // API'den alınan ham verileri dile göre işle
+          return result.data.map((room: any) => ({
+            id: room.id,
+            name: lang === 'tr' ? room.nameTR : room.nameEN,
+            description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+            image: room.mainImageUrl || room.image,
+            price: lang === 'tr' ? room.priceTR : room.priceEN,
+            capacity: room.capacity,
+            size: room.size,
+            features: lang === 'tr' 
+              ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+              : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
+            gallery: Array.isArray(room.gallery) ? room.gallery : [],
+            type: room.type
+          }));
+        } else {
+          console.warn('[getRoomsForLanguage] API başarısız yanıt döndü veya veri formatı beklenmeyen şekilde, statik verilere dönülüyor');
+          // API hatası durumunda statik verileri kullan
+          return staticData;
+        }
+      } catch (apiError) {
+        console.error('[getRoomsForLanguage] API isteği sırasında hata:', apiError);
+        return staticData; // Herhangi bir hata durumunda statik verileri kullan
       }
     } catch (error) {
       console.error('[getRoomsForLanguage] API hatası:', error);
@@ -300,21 +332,34 @@ export async function getRoomsForLanguage(lang: string): Promise<Room[]> {
   }
 }
 
-// Belirli bir odayı ID'ye göre getiren asenkron fonksiyon
+// ID'ye göre oda bilgisini getir
 export async function getRoomById(lang: string, id: string): Promise<Room | undefined> {
   try {
-    console.log(`[getRoomById] Çağrıldı: lang=${lang}, id=${id}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
-
+    console.log(`[getRoomById] Çalıştı, ID: ${id}, dil: ${lang}, Ortam: ${isServer ? 'Sunucu' : 'İstemci'}`);
+    
+    if (!id) {
+      console.error('[getRoomById] Geçersiz ID');
+      return undefined;
+    }
+    
+    // Temel URL'yi al
+    const baseUrl = getBaseUrl();
+    console.log(`[getRoomById] Kullanılan temel URL: ${baseUrl}`);
+    
+    // Yedek statik veri
+    const rooms = lang === 'tr' ? roomsTR : roomsEN;
+    const staticRoom = rooms.find(room => room.id.toLowerCase() === id.toLowerCase());
+    
+    // Önce API'den veri almayı dene
     try {
-      const timestamp = Date.now(); // Cache'lemeden kaçınmak için timestamp ekle
-      const baseUrl = getBaseUrl();
-        
-      // Public API endpoint'ini kullan
-      const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
-      console.log('[getRoomById] Direkt API isteği yapılıyor:', url);
+      // API URL'lerini oluştur
+      const roomUrl = getApiUrl(`rooms/${id}`, { lang });
+      const publicRoomUrl = getApiUrl(`public/rooms/${id}`, { lang });
+      
+      console.log(`[getRoomById] Ana API isteği yapılıyor: ${roomUrl}`);
       
       // Direkt API'den veriyi almaya çalış
-      const response = await fetch(url, {
+      let response = await fetch(roomUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -326,28 +371,35 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
         next: { revalidate: 0 }
       });
       
+      // Ana API başarısız olursa public API'yi dene
+      if (!response.ok) {
+        console.log(`[getRoomById] Ana API başarısız (${response.status}), public API deneniyor...`);
+        console.log(`[getRoomById] Public API isteği yapılıyor: ${publicRoomUrl}`);
+        
+        response = await fetch(publicRoomUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          cache: 'no-store',
+          next: { revalidate: 0 }
+        });
+      }
+      
       if (response.ok) {
         const result = await response.json();
-        console.log('[getRoomById] API yanıtı:', JSON.stringify(result, null, 2));
+        console.log('[getRoomById] API yanıtı alındı');
         
         if (result.success && result.data) {
           console.log('[getRoomById] API\'den doğrudan oda verisi alındı:', result.data.id);
-          console.log('[getRoomById] Oda verileri (API):', {
-            id: result.data.id,
-            nameTR: result.data.nameTR, 
-            nameEN: result.data.nameEN,
-            image: result.data.mainImageUrl || result.data.image,
-            gallery: result.data.gallery || [],
-            featuresTR: result.data.featuresTR || [],
-            featuresEN: result.data.featuresEN || []
-          });
           
           // Feature alanları kontrolü
           const features = lang === 'tr' 
             ? (result.data.featuresTR || []) 
             : (result.data.featuresEN || []);
-            
-          console.log('[getRoomById] Özellikler:', features);
           
           // Oda nesnesini oluştur
           const roomData = {
@@ -362,11 +414,12 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
             gallery: result.data.gallery || []
           };
           
-          console.log('[getRoomById] Oluşturulan oda nesnesi:', roomData);
           return roomData;
         } else {
-          console.error('[getRoomById] API yanıtı başarısız veya veri yok:', result);
+          console.error('[getRoomById] API yanıtı başarısız veya veri yok');
         }
+      } else {
+        console.error(`[getRoomById] Tüm API'ler başarısız: ${response.status}`);
       }
     } catch (apiError) {
       console.error('[getRoomById] API üzerinden oda arama hatası:', apiError);
@@ -378,8 +431,6 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
       
       if (room) {
         console.log(`[getRoomById] Oda başarıyla bulundu: ${room.id}`);
-        console.log(`[getRoomById] Oda adı: ${room.name}`);
-        console.log(`[getRoomById] Oda özellikleri: ${room.features && room.features.length} adet`);
         return room;
       }
     } catch (apiError) {
@@ -388,22 +439,14 @@ export async function getRoomById(lang: string, id: string): Promise<Room | unde
     
     // Bulunamadıysa veya API hatası varsa, sabit verilerde arayalım
     console.log(`[getRoomById] Admin modülünde oda bulunamadı, sabit veriler kontrol ediliyor`);
-    const rooms = lang === 'tr' ? roomsTR : roomsEN;
     
-    // ID'yi normalleştir (URL güvenli hale getir)
-    const normalizedId = id.toLowerCase().trim();
-    console.log('[getRoomById] Normalleştirilmiş ID:', normalizedId);
-    
-    // Odayı bul
-    const staticRoom = rooms.find(room => {
-      const roomId = room.id.toLowerCase().trim();
-      const matches = roomId === normalizedId;
-      console.log(`[getRoomById] Oda ID karşılaştırma: ${roomId} === ${normalizedId} => ${matches}`);
-      return matches;
-    });
-    
-    console.log('[getRoomById] Sabit veriden bulunan oda:', staticRoom?.id || 'Bulunamadı');
-    return staticRoom;
+    if (staticRoom) {
+      console.log('[getRoomById] Sabit veriden bulunan oda:', staticRoom.id);
+      return staticRoom;
+    } else {
+      console.log('[getRoomById] Oda bulunamadı');
+      return undefined;
+    }
   } catch (error) {
     console.error('[getRoomById] Oda arama hatası:', error);
     // Hata durumunda yine sabit verilere dönelim

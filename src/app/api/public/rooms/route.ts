@@ -18,7 +18,6 @@ export interface RoomItem {
   gallery: string[];
   type: string;
   roomTypeId?: string;
-  active: boolean;
   order: number;
 }
 
@@ -45,7 +44,6 @@ export async function GET(request: Request) {
         r.features_en as "featuresEN", 
         r.type, 
         r.room_type_id as "roomTypeId",
-        r.active, 
         r.order_number as order,
         r.order_number as "orderNumber",
         COALESCE(

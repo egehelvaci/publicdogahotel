@@ -27,7 +27,6 @@ export interface SliderItem {
   image?: string;
   videoUrl?: string;
   order: number;
-  active: boolean;
 }
 
 // GET - Tüm slider öğelerini getir
