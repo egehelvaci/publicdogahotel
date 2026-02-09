@@ -25,9 +25,7 @@ export async function GET(
         description_tr as "descriptionTR", 
         description_en as "descriptionEN", 
         order_number as "orderNumber", 
-        type,
-        active,
-        category
+        type
       FROM gallery 
       WHERE id = $1
     `;
@@ -126,49 +124,33 @@ export async function PUT(
       updateValues.push(body.type);
     }
     
-    if (body.active !== undefined) {
-      updateFields.push(`active = $${paramCounter++}`);
-      updateValues.push(body.active);
-    }
-    
-    if (body.category !== undefined) {
-      updateFields.push(`category = $${paramCounter++}`);
-      updateValues.push(body.category);
-    }
-    
-    if (body.orderNumber !== undefined || body.order !== undefined) {
+    if (body.orderNumber !== undefined) {
       updateFields.push(`order_number = $${paramCounter++}`);
-      updateValues.push(body.orderNumber || body.order);
+      updateValues.push(body.orderNumber);
     }
-    
-    // Güncelleme tarihi
-    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     
     // Güncellenecek alan yoksa hata döndür
-    if (updateFields.length === 1) { // Sadece updated_at varsa
+    if (updateFields.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Güncellenecek alan belirtilmedi' },
+        { success: false, message: 'Güncellenecek alan bulunamadı' },
         { status: 400 }
       );
     }
     
-    // Güncelleme sorgusu oluştur
-    const updateQuery = `
-      UPDATE gallery
-      SET ${updateFields.join(', ')}
+    // Sorgu oluştur
+    updateValues.push(id); // ID değerini ekle - son parametre olarak
+    const query = `
+      UPDATE gallery 
+      SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramCounter}
       RETURNING *
     `;
     
-    // ID'yi son parametre olarak ekle
-    updateValues.push(id);
-    
-    // Sorguyu çalıştır
-    const result = await executeQuery(updateQuery, updateValues);
+    const result = await executeQuery(query, updateValues);
     
     if (result.rows.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Güncellenecek galeri öğesi bulunamadı' },
+        { success: false, message: 'Galeri öğesi bulunamadı' },
         { status: 404 }
       );
     }
@@ -176,20 +158,15 @@ export async function PUT(
     // WebSocket bildirimi gönder
     notifyGalleryUpdated();
     
-    // Cache'lenmeyi engellemek için başlıklar
-    const headers = new Headers({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    
     return NextResponse.json(
+      { success: true, item: result.rows[0] },
       { 
-        success: true, 
-        message: 'Galeri öğesi başarıyla güncellendi', 
-        item: result.rows[0] 
-      },
-      { headers }
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   } catch (error) {
     console.error('Galeri öğesi güncellenirken hata:', error);
@@ -216,44 +193,33 @@ export async function DELETE(
     const { id } = params;
     console.log(`DELETE /api/gallery/${id} - Galeri öğesi siliniyor`);
     
-    // Önce öğenin var olup olmadığını kontrol et
-    const checkQuery = `
-      SELECT id FROM gallery WHERE id = $1
-    `;
-    
+    // Önce galeri öğesini kontrol et
+    const checkQuery = `SELECT * FROM gallery WHERE id = $1`;
     const checkResult = await executeQuery(checkQuery, [id]);
     
     if (checkResult.rows.length === 0) {
       return NextResponse.json(
-        { success: false, message: 'Silinecek galeri öğesi bulunamadı' },
+        { success: false, message: 'Galeri öğesi bulunamadı' },
         { status: 404 }
       );
     }
     
-    // Öğeyi sil
-    const deleteQuery = `
-      DELETE FROM gallery WHERE id = $1 RETURNING id
-    `;
-    
-    await executeQuery(deleteQuery, [id]);
+    // Galeri öğesini sil
+    const deleteQuery = `DELETE FROM gallery WHERE id = $1 RETURNING *`;
+    const result = await executeQuery(deleteQuery, [id]);
     
     // WebSocket bildirimi gönder
     notifyGalleryUpdated();
     
-    // Cache'lenmeyi engellemek için başlıklar
-    const headers = new Headers({
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0'
-    });
-    
     return NextResponse.json(
+      { success: true, message: 'Galeri öğesi başarıyla silindi', item: result.rows[0] },
       { 
-        success: true, 
-        message: 'Galeri öğesi başarıyla silindi',
-        id
-      },
-      { headers }
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
     );
   } catch (error) {
     console.error('Galeri öğesi silinirken hata:', error);

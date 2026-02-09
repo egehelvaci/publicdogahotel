@@ -79,7 +79,7 @@ model Service {
   descriptionEN  String           @map("description_en")
   detailsTR      String[]         @map("details_tr")
   detailsEN      String[]         @map("details_en")
-  main_image_url String?
+  mainImageUrl   String?          @map("main_image_url")
   icon           String?
   orderNumber    Int              @default(0) @map("order_number")
   active         Boolean          @default(true)

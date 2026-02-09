@@ -134,21 +134,17 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
       <div className="h-24"></div>
       
       <header 
-        className="fixed w-full z-50 top-0 transition-all duration-300 bg-teal-700/85 backdrop-blur-md shadow-xl py-3"
+        className={`fixed w-full z-50 top-0 transition-all duration-350 bg-white shadow-md py-4`}
       >
-        <div className="absolute inset-0 z-0 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-teal-800/95 via-blue-700/90 to-orange-600/80"></div>
-        </div>
-
         <div className="container mx-auto px-4 flex justify-between items-center relative z-10">
           <div className="flex items-center">
-            <Link href={`/${language}`} className="flex items-center transition-all duration-500 mr-3">
-              <div className="relative h-16 w-32 md:h-24 md:w-48 flex items-center justify-center rounded-lg overflow-hidden bg-white p-1 border border-white/30 hover:border-white/50 transition-all duration-300 shadow-lg">
+            <Link href={`/${language}`} className="flex items-center transition-all duration-500 mr-6">
+              <div className="relative h-14 w-36 md:h-16 md:w-44 flex items-center justify-center">
                 <Image 
-                  src="https://s3.tebi.io/dogahotelfethiye/uploads/logo%20%282%29.jpg"
+                  src="https://s3.tebi.io/dogahotelfethiye/uploads/1744926715316-logo--2-.jpg"
                   alt="Doğa Hotel Logo"
-                  width={170}
-                  height={90}
+                  width={176}
+                  height={140}
                   className="relative z-10 object-contain"
                   priority
                 />
@@ -156,10 +152,10 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
             </Link>
 
             <div className="hidden sm:flex items-center">
-              <FaPhone className="text-white mr-2" />
+              <FaPhone className="text-[#169c71] mr-2" />
               <a 
                 href="tel:02526166180" 
-                className="text-sm font-medium text-white tracking-wider drop-shadow-sm hover:text-amber-200 transition-colors duration-300 flex items-center"
+                className="text-sm font-medium text-gray-600 tracking-wider hover:text-[#169c71] transition-colors duration-300 flex items-center"
               >
                 0252 616 61 80
               </a>
@@ -172,10 +168,10 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
               <Link 
                 key={index} 
                 href={item.path}
-                className={`font-medium transition-colors hover:text-white text-sm lg:text-base ${
+                className={`font-medium transition-colors hover:text-[#169c71] text-sm lg:text-base ${
                   currentPath === item.path 
-                    ? 'text-white font-semibold' 
-                    : 'text-gray-200'
+                    ? 'text-[#169c71] font-semibold' 
+                    : 'text-gray-600'
                 }`}
               >
                 {item.name}
@@ -186,10 +182,10 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
             <div className="relative" ref={langMenuRef}>
               <button 
                 onClick={toggleLangMenu}
-                className="flex items-center transition-colors text-gray-200 hover:text-white text-sm lg:text-base"
+                className="flex items-center transition-colors text-gray-600 hover:text-[#169c71] text-sm lg:text-base"
                 aria-label="Dil Seçimi"
               >
-                <div className="relative w-5 h-5 lg:w-6 lg:h-6 mr-2 rounded-full overflow-hidden border border-white/20">
+                <div className="relative w-5 h-5 lg:w-6 lg:h-6 mr-2 rounded-full overflow-hidden border border-gray-200">
                   <Image 
                     src={languageOptions.find(lang => lang.code === language)?.flag || ''}
                     alt={language}
@@ -204,13 +200,13 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
               
               {/* Dil Menü İçeriği */}
               {isLangMenuOpen && (
-                <div className="absolute right-0 mt-2 w-40 bg-white rounded-md shadow-xl z-50 overflow-hidden">
+                <div className="absolute right-0 mt-2 w-40 bg-white rounded-lg shadow-xl z-50 overflow-hidden border border-gray-100">
                   {languageOptions.map((option) => (
                     <button
                       key={option.code}
                       onClick={() => changeLanguage(option.code)}
-                      className={`flex items-center w-full p-3 text-left hover:bg-gray-100 transition-colors ${
-                        language === option.code ? 'bg-teal-50 font-medium' : ''
+                      className={`flex items-center w-full p-3 text-left hover:bg-gray-50 transition-colors ${
+                        language === option.code ? 'bg-gray-50 text-[#169c71] font-medium' : 'text-gray-600'
                       }`}
                     >
                       <div className="relative w-5 h-5 mr-2 rounded-full overflow-hidden">
@@ -221,7 +217,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
                           className="object-cover"
                         />
                       </div>
-                      <span className="text-gray-700">{option.name}</span>
+                      <span>{option.name}</span>
                     </button>
                   ))}
                 </div>
@@ -231,7 +227,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
 
           {/* Mobile Menu Button */}
           <button 
-            className="md:hidden focus:outline-none transition-colors text-white p-2"
+            className="md:hidden focus:outline-none transition-colors text-gray-600 hover:text-[#169c71] p-2"
             onClick={toggleMenu}
             aria-label={isOpen ? "Menüyü Kapat" : "Menüyü Aç"}
             aria-expanded={isOpen}
@@ -242,27 +238,29 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden bg-teal-700/95 backdrop-blur-lg shadow-lg relative z-10 max-h-[80vh] overflow-y-auto">
+          <div className="md:hidden bg-white shadow-lg relative z-10 max-h-[80vh] overflow-y-auto border-t border-gray-100">
             <div className="container mx-auto px-4 py-3 flex flex-col space-y-3">
               {menuItems.map((item, index) => (
                 <Link 
                   key={index} 
                   href={item.path}
-                  className={`font-medium py-4 px-2 transition-colors hover:text-white flex items-center justify-between ${
-                    currentPath === item.path ? 'text-white font-semibold bg-teal-600/30 rounded-md' : 'text-gray-200'
+                  className={`font-medium py-4 px-3 transition-colors hover:text-[#169c71] flex items-center justify-between rounded-lg ${
+                    currentPath === item.path 
+                      ? 'text-[#169c71] font-semibold bg-gray-50' 
+                      : 'text-gray-600'
                   }`}
                   onClick={() => setIsOpen(false)}
                 >
                   <span>{item.name}</span>
                   {currentPath === item.path && (
-                    <span className="bg-teal-500 h-6 w-1 rounded-full"></span>
+                    <span className="bg-[#169c71] h-6 w-1 rounded-full"></span>
                   )}
                 </Link>
               ))}
               
               {/* Dil Menüsü - Mobil */}
-              <div className="py-4 border-t border-teal-600/50 mt-2">
-                <p className="text-gray-200 text-sm mb-2 font-medium">
+              <div className="py-4 border-t border-gray-100 mt-2">
+                <p className="text-gray-600 text-sm mb-2 font-medium">
                   {language === 'tr' ? 'Dil Seçin' : 'Choose Language'}
                 </p>
                 <div className="flex flex-row gap-2">
@@ -270,10 +268,10 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
                     <button
                       key={option.code}
                       onClick={() => changeLanguage(option.code)}
-                      className={`flex items-center p-3 rounded-md ${
+                      className={`flex items-center p-3 rounded-lg ${
                         language === option.code 
-                          ? 'bg-teal-600 text-white' 
-                          : 'text-gray-200 bg-teal-700/50 hover:bg-teal-600/70'
+                          ? 'bg-[#169c71] text-white' 
+                          : 'text-gray-600 bg-gray-50 hover:bg-gray-100'
                       } transition-all`}
                     >
                       <div className="relative w-5 h-5 mr-2 rounded-full overflow-hidden">
@@ -293,7 +291,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
               {/* Telefon bilgisi - Mobil */}
               <a 
                 href="tel:02526166180" 
-                className="flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white p-3 rounded-md transition-all mt-2 mb-1"
+                className="flex items-center justify-center gap-2 bg-[#169c71] hover:bg-[#117a59] text-white p-3 rounded-lg transition-all mt-2 mb-1"
               >
                 <FaPhone className="text-white" />
                 <span className="font-medium">0252 616 61 80</span>

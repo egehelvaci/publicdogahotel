@@ -194,9 +194,6 @@ export default function HeroSliderPage({ params }: HeroSliderPageProps) {
                         Başlık
                       </th>
                       <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Durum
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         İşlemler
                       </th>
                     </tr>
@@ -208,46 +205,46 @@ export default function HeroSliderPage({ params }: HeroSliderPageProps) {
                           <div className="flex items-center">
                             <span className="text-sm text-gray-900">{index + 1}</span>
                             <div className="ml-4 flex flex-col space-y-1">
-                    <button 
+                              <button 
                                 onClick={() => moveItemUp(index)} 
                                 disabled={index === 0}
                                 className={`p-1 rounded ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
                                 title="Yukarı Taşı"
                               >
                                 <FaArrowUp size={14} />
-                    </button>
-                    <button 
+                              </button>
+                              <button 
                                 onClick={() => moveItemDown(index)} 
                                 disabled={index === sliderItems.length - 1}
                                 className={`p-1 rounded ${index === sliderItems.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
                                 title="Aşağı Taşı"
                               >
                                 <FaArrowDown size={14} />
-                    </button>
-                  </div>
-                </div>
+                              </button>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex-shrink-0 h-20 w-32 relative overflow-hidden">
                             {item.videoUrl ? (
-                                <ImageKitVideo 
-                                  src={item.videoUrl}
-                                  className="h-20 w-32 object-cover rounded-md"
-                                  width={128}
-                                  height={80}
-                                  controls={false}
-                                  muted={true}
-                                  loop={true}
-                                  autoPlay={false}
-                                />
+                              <ImageKitVideo 
+                                src={item.videoUrl}
+                                className="h-20 w-32 object-cover rounded-md"
+                                width={128}
+                                height={80}
+                                controls={false}
+                                muted={true}
+                                loop={true}
+                                autoPlay={false}
+                              />
                             ) : item.image ? (
-                                <ImageKitImage
-                                  src={item.image}
-                                  alt={item.titleTR || 'Slider görseli'}
-                                  className="h-20 w-32 object-cover rounded-md"
-                                  width={128}
-                                  height={80}
-                                />
+                              <ImageKitImage
+                                src={item.image}
+                                alt={item.titleTR || 'Slider görseli'}
+                                className="h-20 w-32 object-cover rounded-md"
+                                width={128}
+                                height={80}
+                              />
                             ) : (
                               <div className="h-20 w-32 flex items-center justify-center bg-gray-200 rounded-md">
                                 <span className="text-xs text-gray-500">Görsel yok</span>
@@ -262,40 +259,35 @@ export default function HeroSliderPage({ params }: HeroSliderPageProps) {
                             <div className="text-xs text-gray-500 mt-1 italic">{item.subtitleTR}</div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {item.active ? 'Aktif' : 'Pasif'}
-                          </span>
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <div className="flex space-x-2">
-                                <Link 
-                                  href={`/${lang}/admin/hero-slider/edit/${item.id}`}
+                          <div className="flex space-x-2">
+                            <Link 
+                              href={`/${lang}/admin/hero-slider/edit/${item.id}`}
                               className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded"
-                                >
+                            >
                               Düzenle
-                                </Link>
-                                <button
+                            </Link>
+                            <button
                               onClick={() => handleDelete(item.id)}
                               className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded"
                             >
                               Sil
-                                </button>
+                            </button>
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                        </div>
-                      </div>
+              </div>
+            </div>
             
             <div className="mt-6 flex justify-end">
               {/* Bu butonu kaldırıyorum çünkü yukarıda zaten aynı buton var */}
             </div>
           </>
-          )}
-        </div>
+        )}
+      </div>
       
       <Modal
         isOpen={showDeleteModal}
