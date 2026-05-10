@@ -122,8 +122,8 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
 
   // Dil seçenekleri
   const languageOptions = [
-    { code: 'tr', name: 'Türkçe', flag: 'https://s3.tebi.io/dogahotelfethiye/uploads/tr.png' },
-    { code: 'en', name: 'English', flag: 'https://s3.tebi.io/dogahotelfethiye/uploads/gb.png' },
+    { code: 'tr', name: 'Türkçe', flag: 'https://oludenizfethiye.b-cdn.net/uploads/tr.png' },
+    { code: 'en', name: 'English', flag: 'https://oludenizfethiye.b-cdn.net/uploads/gb.png' },
   ];
 
   console.log("Header state:", { isHomePage, scrolled, isTransparent: false, path: pathname });
@@ -141,7 +141,7 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
             <Link href={`/${language}`} className="flex items-center transition-all duration-500 mr-6">
               <div className="relative h-14 w-36 md:h-16 md:w-44 flex items-center justify-center">
                 <Image 
-                  src="https://s3.tebi.io/dogahotelfethiye/uploads/1744926715316-logo--2-.jpg"
+                  src="https://oludenizfethiye.b-cdn.net/dogahotel.png"
                   alt="Doğa Hotel Logo"
                   width={176}
                   height={140}

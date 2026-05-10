@@ -52,10 +52,10 @@ export default function AddSliderPage({ params }: AddSliderPageProps) {
     const hasVideoQuery = url.toLowerCase().includes('video=') || url.toLowerCase().includes('type=video');
     
     // Tebi'nin dosya URL'si içindeki belirli desenleri kontrol et
-    const isTebiVideoUrl = url.includes('s3.tebi.io') && 
+    const isBunnyVideoUrl = url.includes('b-cdn.net') &&
                           (url.includes('video') || url.includes('mov') || url.includes('mp4'));
     
-    return hasVideoExtension || hasVideoPath || hasVideoQuery || isTebiVideoUrl;
+    return hasVideoExtension || hasVideoPath || hasVideoQuery || isBunnyVideoUrl;
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
