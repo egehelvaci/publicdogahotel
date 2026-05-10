@@ -122,8 +122,8 @@ const Header = ({ lang: initialLang = 'tr' }: HeaderProps) => {
 
   // Dil seçenekleri
   const languageOptions = [
-    { code: 'tr', name: 'Türkçe', flag: 'https://oludenizfethiye.b-cdn.net/uploads/tr.png' },
-    { code: 'en', name: 'English', flag: 'https://oludenizfethiye.b-cdn.net/uploads/gb.png' },
+    { code: 'tr', name: 'Türkçe', flag: 'https://oludenizfethiye.b-cdn.net/turkey-7277574_1280.png' },
+    { code: 'en', name: 'English', flag: 'https://oludenizfethiye.b-cdn.net/flag-4628030_1280.jpg' },
   ];
 
   console.log("Header state:", { isHomePage, scrolled, isTransparent: false, path: pathname });
