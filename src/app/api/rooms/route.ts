@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { executeQuery } from '@/lib/db';
 import { notifyRoomsUpdated } from '../websocket/route';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -189,8 +190,8 @@ export async function POST(request: Request) {
         body.priceEN || '€0',
         body.capacity || 2,
         body.size || 25,
-        JSON.stringify(featuresTR),
-        JSON.stringify(featuresEN),
+        featuresTR,
+        featuresEN,
         body.type || 'standard',
         body.roomTypeId || null,
         body.order || orderNumber
@@ -203,20 +204,20 @@ export async function POST(request: Request) {
       if (Array.isArray(body.gallery) && body.gallery.length > 0) {
         for (let i = 0; i < body.gallery.length; i++) {
           const galleryQuery = `
-            INSERT INTO room_gallery (room_id, image_url, order_number)
-            VALUES ($1, $2, $3)
+            INSERT INTO room_gallery (id, room_id, image_url, order_number)
+            VALUES ($1, $2, $3, $4)
           `;
           
-          await client.query(galleryQuery, [id, body.gallery[i], i + 1]);
+          await client.query(galleryQuery, [uuidv4(), id, body.gallery[i], i + 1]);
         }
       } else if (body.image) {
         // Ana görsel galeri öğesi olarak da ekle
         const galleryQuery = `
-          INSERT INTO room_gallery (room_id, image_url, order_number)
-          VALUES ($1, $2, $3)
+          INSERT INTO room_gallery (id, room_id, image_url, order_number)
+          VALUES ($1, $2, $3, $4)
         `;
         
-        await client.query(galleryQuery, [id, body.image, 1]);
+        await client.query(galleryQuery, [uuidv4(), id, body.image, 1]);
       }
       
       // Transaction'ı tamamla

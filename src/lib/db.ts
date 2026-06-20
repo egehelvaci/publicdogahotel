@@ -68,9 +68,12 @@ export async function executeQuery(text: string, params?: any[]): Promise<any> {
       console.log(`DB URL: ${dbUrlMasked.substring(0, 25)}...`);
       
       // Havuzu oluştur
+      // Neon gibi yönetilen PostgreSQL servisleri her ortamda SSL ister.
+      // Bağlantı dizisinde sslmode kapalı değilse SSL'i etkin tut.
+      const requireSsl = !/sslmode=disable/i.test(process.env.DATABASE_URL || '');
       pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        ssl: requireSsl ? { rejectUnauthorized: false } : false,
         max: 20, // Maksimum bağlantı sayısı
         idleTimeoutMillis: 30000, // Boşta kalma süresi - 30 saniye
         connectionTimeoutMillis: 10000, // Bağlantı zaman aşımı - 10 saniye

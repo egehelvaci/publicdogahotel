@@ -371,9 +371,9 @@ export default function RoomsPage({ params }: RoomsPageProps) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-10"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 mb-6 md:mb-10"
               >
-                {filteredRooms.slice(0, 2).map((room, index) => {
+                {filteredRooms.map((room, index) => {
                   const galleryImages = room.gallery?.length > 0 ? room.gallery : [room.image];
                   const activeImageIndex = activeImages[room.id] || 0;
                   
@@ -384,106 +384,6 @@ export default function RoomsPage({ params }: RoomsPageProps) {
                       initial={{ opacity: 0, y: 30 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.5, delay: index * 0.1 }}
-                      whileHover={{ y: -8 }}
-                    >
-                      <div className="relative h-48 sm:h-60 md:h-72 w-full overflow-hidden">
-                        {/* Görseller Slider */}
-                        {galleryImages.map((image: string, imgIndex: number) => (
-                          <motion.div 
-                            key={imgIndex}
-                            className="absolute inset-0"
-                            initial={{ opacity: 0 }}
-                            animate={{ 
-                              opacity: imgIndex === activeImageIndex ? 1 : 0,
-                              zIndex: imgIndex === activeImageIndex ? 1 : 0
-                            }}
-                            transition={{ duration: 0.5 }}
-                          >
-                            <Image
-                              src={image}
-                              alt={`${room.name} - ${imgIndex + 1}`}
-                              fill
-                              sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 50vw, 33vw"
-                              className="transition-transform duration-700 group-hover:scale-110 object-cover"
-                            />
-                          </motion.div>
-                        ))}
-                        
-                        {/* Type badge */}
-                        {room.type && (
-                          <div className="absolute top-4 left-4 bg-black/40 text-white px-3 py-1 rounded-full text-xs backdrop-blur-sm z-10">
-                            {room.type}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="p-4 md:p-6">
-                        <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2 md:mb-3 group-hover:text-[#169c71] transition-colors">{room.name}</h2>
-                        <p className="text-sm md:text-base text-gray-600 mb-3 md:mb-5 line-clamp-2">{room.description}</p>
-                        
-                        <div className="grid grid-cols-2 gap-2 md:gap-3 mb-4 md:mb-6">
-                          <div className="flex items-center text-gray-700 text-sm md:text-base">
-                            <FaUsers className="text-[#169c71] mr-2" />
-                            <span>{room.capacity} {lang === 'tr' ? 'Kişi' : 'Persons'}</span>
-                          </div>
-                          <div className="flex items-center text-gray-700 text-sm md:text-base">
-                            <FaRulerCombined className="text-[#169c71] mr-2" />
-                            <span>{room.size} m²</span>
-                          </div>
-                        </div>
-                        
-                        {/* Özellikler */}
-                        <div className="border-t border-gray-100 pt-3 md:pt-4 mb-4 md:mb-5">
-                          <div className="flex flex-wrap gap-2 md:gap-3">
-                            {room.features && Array.isArray(room.features) && room.features.slice(0, 4).map((feature: string, i: number) => (
-                              <span key={i} className="inline-flex items-center bg-gray-100 text-gray-700 px-2 md:px-3 py-1 rounded-full text-xs">
-                                {feature}
-                              </span>
-                            ))}
-                            {room.features && Array.isArray(room.features) && room.features.length > 4 && (
-                              <span className="inline-flex items-center bg-gray-100 text-gray-700 px-2 md:px-3 py-1 rounded-full text-xs">
-                                +{room.features.length - 4} {lang === 'tr' ? 'daha' : 'more'}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <Link 
-                          href={`/${lang}/rooms/${room.id}`}
-                          className="w-full inline-flex items-center justify-center bg-[#169c71] hover:bg-[#117a59] text-white py-2.5 md:py-3 px-4 md:px-6 rounded-lg transition-colors group/btn shadow-md text-sm md:text-base"
-                        >
-                          <span className="mr-2">{lang === 'tr' ? 'Detayları Görüntüle' : 'View Details'}</span>
-                          <FaArrowRight className="transition-transform duration-300 transform group-hover/btn:translate-x-1" />
-                        </Link>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* İkinci Sıra - Son İki Oda */}
-          <AnimatePresence mode="wait">
-            {!loading && filteredRooms.length > 2 && (
-              <motion.div 
-                key="roomsGrid2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 md:gap-8"
-              >
-                {filteredRooms.slice(2, 4).map((room, index) => {
-                  const galleryImages = room.gallery?.length > 0 ? room.gallery : [room.image];
-                  const activeImageIndex = activeImages[room.id] || 0;
-                  
-                  return (
-                    <motion.div 
-                      key={room.id}
-                      className="group relative bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500"
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 + 0.2 }}
                       whileHover={{ y: -8 }}
                     >
                       <div className="relative h-48 sm:h-60 md:h-72 w-full overflow-hidden">
