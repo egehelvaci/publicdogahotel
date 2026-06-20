@@ -5,7 +5,7 @@ import { FaArrowLeft, FaUsers, FaRulerCombined, FaCheck, FaBed, FaPhone } from '
 import { getRoomsForLanguage } from '../../../data/rooms';
 import RoomGallery from './RoomGallery';
 import { notFound } from 'next/navigation';
-import { getBaseUrl, isServer } from '@/lib/utils';
+import { prisma } from '@/lib/prisma';
 
 interface RoomDetailPageProps {
   params: {
@@ -20,62 +20,38 @@ export const fetchCache = 'force-no-store';
 export const runtime = 'nodejs';
 
 // Merkezi oda alma fonksiyonu
+// Sayfa zaten sunucuda çalıştığı için kendi HTTP API'sine istek atmak yerine
+// doğrudan veritabanından okuyoruz. Bu, production'daki base-URL/self-fetch
+// sorununu ve yereldeki port bağımlılığını ortadan kaldırır.
 async function fetchRoomData(lang: string, id: string) {
   try {
-    // Ortamı loglama
-    if (isServer) {
-      console.log('[RoomDetailPage] Sunucu tarafında çalışıyor');
-    } else {
-      console.log('[RoomDetailPage] İstemci tarafında çalışıyor');
-    }
-
-    // Timestamp ekleyerek cache'lemeyi önle
-    const timestamp = Date.now();
-    const baseUrl = getBaseUrl();
-    const url = `${baseUrl}/api/public/rooms/${id}?t=${timestamp}`;
-    
-    console.log(`[RoomDetailPage] API isteği: ${url}`);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
-      cache: 'no-store',
-      next: { revalidate: 0 }
+    const room = await prisma.room.findUnique({
+      where: { id },
+      include: {
+        gallery: {
+          orderBy: { orderNumber: 'asc' }
+        }
+      }
     });
-    
-    if (!response.ok) {
-      console.error(`[RoomDetailPage] API yanıtı başarısız: ${response.status} ${response.statusText}`);
+
+    if (!room) {
       return null;
     }
-    
-    const data = await response.json();
-    
-    if (data && data.success && data.data) {
-      // API'den dönen veriyi Room formatına dönüştür
-      const room = data.data;
-      
-      return {
-        id: room.id,
-        name: lang === 'tr' ? room.nameTR : room.nameEN,
-        description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
-        image: room.mainImageUrl || room.image,
-        price: lang === 'tr' ? room.priceTR : room.priceEN,
-        capacity: room.capacity,
-        size: room.size,
-        features: lang === 'tr' 
-          ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
-          : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
-        gallery: Array.isArray(room.gallery) ? room.gallery : [],
-        type: room.type
-      };
-    }
-    
-    return null;
+
+    return {
+      id: room.id,
+      name: lang === 'tr' ? room.nameTR : room.nameEN,
+      description: lang === 'tr' ? room.descriptionTR : room.descriptionEN,
+      image: room.mainImageUrl || '',
+      price: lang === 'tr' ? room.priceTR : room.priceEN,
+      capacity: room.capacity,
+      size: room.size,
+      features: lang === 'tr'
+        ? (Array.isArray(room.featuresTR) ? room.featuresTR : [])
+        : (Array.isArray(room.featuresEN) ? room.featuresEN : []),
+      gallery: room.gallery.map(g => g.imageUrl),
+      type: room.type
+    };
   } catch (error) {
     console.error('[RoomDetailPage] Oda verisi alınırken hata:', error);
     return null;
